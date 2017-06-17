@@ -1,3 +1,6 @@
+// This is free and unencumbered software released into the public domain.
+// For more information, please refer to <http://unlicense.org>
+
 #pragma once
 
 #ifndef gizmo_hpp
@@ -10,6 +13,7 @@
 #include <limits>       // For std::numeric_limits/epsilon
 #include <memory>
 #include <vector>
+#include <iostream>
 
 // Visual Studio versions prior to 2015 lack constexpr support
 #if defined(_MSC_VER) && _MSC_VER < 1900 && !defined(constexpr)
@@ -33,7 +37,6 @@ namespace minalg
         constexpr const T &         operator[] (int i) const { return (&x)[i]; }
         T &                         operator[] (int i) { return (&x)[i]; }
     };
-
     template<class T> struct vec<T, 3>
     {
         T                           x, y, z;
@@ -49,7 +52,6 @@ namespace minalg
         constexpr const vec<T, 2> &  xy() const { return *reinterpret_cast<const vec<T, 2> *>(this); }
         vec<T, 2> &                  xy() { return *reinterpret_cast<vec<T, 2> *>(this); }
     };
-
     template<class T> struct vec<T, 4>
     {
         T                           x, y, z, w;
@@ -70,6 +72,7 @@ namespace minalg
     };
 
     // Small, fixed-size matrix type, consisting of exactly M rows and N columns of type T, stored in column-major order.
+    template<class T, int M, int N> struct mat;
     template<class T, int M> struct mat<T, M, 3>
     {
         typedef vec<T, M>            V;
@@ -84,7 +87,6 @@ namespace minalg
         constexpr const V &         operator[] (int j) const { return (&x)[j]; }
         V &                         operator[] (int j) { return (&x)[j]; }
     };
-
     template<class T, int M> struct mat<T, M, 4>
     {
         typedef vec<T, M>            V;
@@ -113,7 +115,7 @@ namespace minalg
     template<class A, class B = A> using bool_result_t = typename traits<A, B>::bool_result; // Result of a comparison or unary not operation on linear algebra types
     template<class A, class B = A> using arith_result_t = typename traits<A, B>::arith_result; // Result of an arithmetic operation on linear algebra types (accounts for integer promotion)
 
-                                                                                               // Produce a scalar by applying f(T,T) -> T to adjacent pairs of elements from vector/matrix a in left-to-right order (matching the associativity of arithmetic and logical operators)
+    // Produce a scalar by applying f(T,T) -> T to adjacent pairs of elements from vector/matrix a in left-to-right order (matching the associativity of arithmetic and logical operators)
     template<class T, class F> constexpr T fold(const vec<T, 2> & a, F f) { return f(a.x, a.y); }
     template<class T, class F> constexpr T fold(const vec<T, 3> & a, F f) { return f(f(a.x, a.y), a.z); }
     template<class T, class F> constexpr T fold(const vec<T, 4> & a, F f) { return f(f(f(a.x, a.y), a.z), a.w); }
@@ -329,8 +331,19 @@ namespace minalg
     template<class T, int M, int N>       vec<T, M> * end(mat<T, M, N> & a) { return begin(a) + N; }
     template<class T, int M, int N> const vec<T, M> * end(const mat<T, M, N> & a) { return begin(a) + N; }
 
+    // Factory functions for 3D spatial transformations
+    enum fwd_axis { neg_z, pos_z };					// Should projection matrices be generated assuming forward is {0,0,-1} or {0,0,1}
+    enum z_range { neg_one_to_one, zero_to_one };	// Should projection matrices map z into the range of [-1,1] or [0,1]?
+    template<class T> vec<T, 4>   rotation_quat(const vec<T, 3> & axis, T angle) { return{ axis*std::sin(angle / 2), std::cos(angle / 2) }; }
+    template<class T> vec<T, 4>   rotation_quat(const mat<T, 3, 3> & m) { return copysign(sqrt(max(T(0), T(1) + vec<T, 4>(m.x.x - m.y.y - m.z.z, m.y.y - m.x.x - m.z.z, m.z.z - m.x.x - m.y.y, m.x.x + m.y.y + m.z.z))) / T(2), vec<T, 4>(m.y.z - m.z.y, m.z.x - m.x.z, m.x.y - m.y.x, 1)); }
+    template<class T> mat<T, 4, 4> translation_matrix(const vec<T, 3> & translation) { return{ { 1,0,0,0 },{ 0,1,0,0 },{ 0,0,1,0 },{ translation,1 } }; }
+    template<class T> mat<T, 4, 4> rotation_matrix(const vec<T, 4> & rotation) { return{ { qxdir(rotation),0 },{ qydir(rotation),0 },{ qzdir(rotation),0 },{ 0,0,0,1 } }; }
+    template<class T> mat<T, 4, 4> scaling_matrix(const vec<T, 3> & scaling) { return{ { scaling.x,0,0,0 },{ 0,scaling.y,0,0 },{ 0,0,scaling.z,0 },{ 0,0,0,1 } }; }
+    template<class T> mat<T, 4, 4> pose_matrix(const vec<T, 4> & q, const vec<T, 3> & p) { return{ { qxdir(q),0 },{ qydir(q),0 },{ qzdir(q),0 },{ p,1 } }; }
+    template<class T> mat<T, 4, 4> frustum_matrix(T x0, T x1, T y0, T y1, T n, T f, fwd_axis a = neg_z, z_range z = neg_one_to_one) { const T s = a == pos_z ? T(1) : T(-1); return z == zero_to_one ? mat<T, 4, 4>{ {2 * n / (x1 - x0), 0, 0, 0}, { 0,2 * n / (y1 - y0),0,0 }, { (x0 + x1) / (x1 - x0),(y0 + y1) / (y1 - y0),s*(f + 0) / (f - n),s }, { 0,0,-1 * n*f / (f - n),0 }} : mat<T, 4, 4>{ { 2 * n / (x1 - x0),0,0,0 },{ 0,2 * n / (y1 - y0),0,0 },{ (x0 + x1) / (x1 - x0),(y0 + y1) / (y1 - y0),s*(f + n) / (f - n),s },{ 0,0,-2 * n*f / (f - n),0 } }; }
+    template<class T> mat<T, 4, 4> perspective_matrix(T fovy, T aspect, T n, T f, fwd_axis a = neg_z, z_range z = neg_one_to_one) { T y = n*std::tan(fovy / 2), x = y*aspect; return frustum_matrix(-x, x, -y, y, n, f, a, z); }
+
     // Provide typedefs for common element types and vector/matrix sizes
-    typedef vec<bool, 2> bool2; typedef vec<uint8_t, 2> byte2; typedef vec<int16_t, 2> short2; typedef vec<uint16_t, 2> ushort2;
     typedef vec<bool, 3> bool3; typedef vec<uint8_t, 3> byte3; typedef vec<int16_t, 3> short3; typedef vec<uint16_t, 3> ushort3;
     typedef vec<bool, 4> bool4; typedef vec<uint8_t, 4> byte4; typedef vec<int16_t, 4> short4; typedef vec<uint16_t, 4> ushort4;
     typedef vec<int, 2> int2; typedef vec<unsigned, 2> uint2; typedef vec<float, 2> float2; typedef vec<double, 2> double2;
@@ -339,106 +352,149 @@ namespace minalg
     typedef mat<bool, 3, 3> bool3x3; typedef mat<int, 3, 3> int3x3; typedef mat<float, 3, 3> float3x3; typedef mat<double, 3, 3> double3x3;
     typedef mat<bool, 4, 4> bool4x4; typedef mat<int, 4, 4> int4x4; typedef mat<float, 4, 4> float4x4; typedef mat<double, 4, 4> double4x4;
 
-    // Definitions of functions too long to be defined inline
-    template<class T> constexpr minalg::mat<T, 3, 3> minalg::adjugate(const mat<T, 3, 3> & a)
-    {
-        return{ { a.y.y*a.z.z - a.z.y*a.y.z, a.z.y*a.x.z - a.x.y*a.z.z, a.x.y*a.y.z - a.y.y*a.x.z },
-        { a.y.z*a.z.x - a.z.z*a.y.x, a.z.z*a.x.x - a.x.z*a.z.x, a.x.z*a.y.x - a.y.z*a.x.x },
-        { a.y.x*a.z.y - a.z.x*a.y.y, a.z.x*a.x.y - a.x.x*a.z.y, a.x.x*a.y.y - a.y.x*a.x.y } };
-    }
-
-    template<class T> constexpr minalg::mat<T, 4, 4> minalg::adjugate(const mat<T, 4, 4> & a)
-    {
-        return{ { a.y.y*a.z.z*a.w.w + a.w.y*a.y.z*a.z.w + a.z.y*a.w.z*a.y.w - a.y.y*a.w.z*a.z.w - a.z.y*a.y.z*a.w.w - a.w.y*a.z.z*a.y.w,
-            a.x.y*a.w.z*a.z.w + a.z.y*a.x.z*a.w.w + a.w.y*a.z.z*a.x.w - a.w.y*a.x.z*a.z.w - a.z.y*a.w.z*a.x.w - a.x.y*a.z.z*a.w.w,
-            a.x.y*a.y.z*a.w.w + a.w.y*a.x.z*a.y.w + a.y.y*a.w.z*a.x.w - a.x.y*a.w.z*a.y.w - a.y.y*a.x.z*a.w.w - a.w.y*a.y.z*a.x.w,
-            a.x.y*a.z.z*a.y.w + a.y.y*a.x.z*a.z.w + a.z.y*a.y.z*a.x.w - a.x.y*a.y.z*a.z.w - a.z.y*a.x.z*a.y.w - a.y.y*a.z.z*a.x.w },
-            { a.y.z*a.w.w*a.z.x + a.z.z*a.y.w*a.w.x + a.w.z*a.z.w*a.y.x - a.y.z*a.z.w*a.w.x - a.w.z*a.y.w*a.z.x - a.z.z*a.w.w*a.y.x,
-            a.x.z*a.z.w*a.w.x + a.w.z*a.x.w*a.z.x + a.z.z*a.w.w*a.x.x - a.x.z*a.w.w*a.z.x - a.z.z*a.x.w*a.w.x - a.w.z*a.z.w*a.x.x,
-            a.x.z*a.w.w*a.y.x + a.y.z*a.x.w*a.w.x + a.w.z*a.y.w*a.x.x - a.x.z*a.y.w*a.w.x - a.w.z*a.x.w*a.y.x - a.y.z*a.w.w*a.x.x,
-            a.x.z*a.y.w*a.z.x + a.z.z*a.x.w*a.y.x + a.y.z*a.z.w*a.x.x - a.x.z*a.z.w*a.y.x - a.y.z*a.x.w*a.z.x - a.z.z*a.y.w*a.x.x },
-            { a.y.w*a.z.x*a.w.y + a.w.w*a.y.x*a.z.y + a.z.w*a.w.x*a.y.y - a.y.w*a.w.x*a.z.y - a.z.w*a.y.x*a.w.y - a.w.w*a.z.x*a.y.y,
-            a.x.w*a.w.x*a.z.y + a.z.w*a.x.x*a.w.y + a.w.w*a.z.x*a.x.y - a.x.w*a.z.x*a.w.y - a.w.w*a.x.x*a.z.y - a.z.w*a.w.x*a.x.y,
-            a.x.w*a.y.x*a.w.y + a.w.w*a.x.x*a.y.y + a.y.w*a.w.x*a.x.y - a.x.w*a.w.x*a.y.y - a.y.w*a.x.x*a.w.y - a.w.w*a.y.x*a.x.y,
-            a.x.w*a.z.x*a.y.y + a.y.w*a.x.x*a.z.y + a.z.w*a.y.x*a.x.y - a.x.w*a.y.x*a.z.y - a.z.w*a.x.x*a.y.y - a.y.w*a.z.x*a.x.y },
-            { a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z,
-            a.x.x*a.z.y*a.w.z + a.w.x*a.x.y*a.z.z + a.z.x*a.w.y*a.x.z - a.x.x*a.w.y*a.z.z - a.z.x*a.x.y*a.w.z - a.w.x*a.z.y*a.x.z,
-            a.x.x*a.w.y*a.y.z + a.y.x*a.x.y*a.w.z + a.w.x*a.y.y*a.x.z - a.x.x*a.y.y*a.w.z - a.w.x*a.x.y*a.y.z - a.y.x*a.w.y*a.x.z,
-            a.x.x*a.y.y*a.z.z + a.z.x*a.x.y*a.y.z + a.y.x*a.z.y*a.x.z - a.x.x*a.z.y*a.y.z - a.y.x*a.x.y*a.z.z - a.z.x*a.y.y*a.x.z } };
-    }
-
-    template<class T> constexpr T minalg::determinant(const mat<T, 4, 4> & a)
-    {
-        return a.x.x*(a.y.y*a.z.z*a.w.w + a.w.y*a.y.z*a.z.w + a.z.y*a.w.z*a.y.w - a.y.y*a.w.z*a.z.w - a.z.y*a.y.z*a.w.w - a.w.y*a.z.z*a.y.w)
-            + a.x.y*(a.y.z*a.w.w*a.z.x + a.z.z*a.y.w*a.w.x + a.w.z*a.z.w*a.y.x - a.y.z*a.z.w*a.w.x - a.w.z*a.y.w*a.z.x - a.z.z*a.w.w*a.y.x)
-            + a.x.z*(a.y.w*a.z.x*a.w.y + a.w.w*a.y.x*a.z.y + a.z.w*a.w.x*a.y.y - a.y.w*a.w.x*a.z.y - a.z.w*a.y.x*a.w.y - a.w.w*a.z.x*a.y.y)
-            + a.x.w*(a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z);
-    }
-
 } // end namespace minalg
+
+static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
+static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
+
+template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
+
+// Definitions of functions too long to be defined inline
+template<class T> minalg::mat<T, 3, 3> minalg::adjugate(const mat<T, 3, 3> & a)
+{
+    return{ { a.y.y*a.z.z - a.z.y*a.y.z, a.z.y*a.x.z - a.x.y*a.z.z, a.x.y*a.y.z - a.y.y*a.x.z },
+    { a.y.z*a.z.x - a.z.z*a.y.x, a.z.z*a.x.x - a.x.z*a.z.x, a.x.z*a.y.x - a.y.z*a.x.x },
+    { a.y.x*a.z.y - a.z.x*a.y.y, a.z.x*a.x.y - a.x.x*a.z.y, a.x.x*a.y.y - a.y.x*a.x.y } };
+}
+
+template<class T> minalg::mat<T, 4, 4> minalg::adjugate(const mat<T, 4, 4> & a)
+{
+    return{ { a.y.y*a.z.z*a.w.w + a.w.y*a.y.z*a.z.w + a.z.y*a.w.z*a.y.w - a.y.y*a.w.z*a.z.w - a.z.y*a.y.z*a.w.w - a.w.y*a.z.z*a.y.w,
+        a.x.y*a.w.z*a.z.w + a.z.y*a.x.z*a.w.w + a.w.y*a.z.z*a.x.w - a.w.y*a.x.z*a.z.w - a.z.y*a.w.z*a.x.w - a.x.y*a.z.z*a.w.w,
+        a.x.y*a.y.z*a.w.w + a.w.y*a.x.z*a.y.w + a.y.y*a.w.z*a.x.w - a.x.y*a.w.z*a.y.w - a.y.y*a.x.z*a.w.w - a.w.y*a.y.z*a.x.w,
+        a.x.y*a.z.z*a.y.w + a.y.y*a.x.z*a.z.w + a.z.y*a.y.z*a.x.w - a.x.y*a.y.z*a.z.w - a.z.y*a.x.z*a.y.w - a.y.y*a.z.z*a.x.w },
+        { a.y.z*a.w.w*a.z.x + a.z.z*a.y.w*a.w.x + a.w.z*a.z.w*a.y.x - a.y.z*a.z.w*a.w.x - a.w.z*a.y.w*a.z.x - a.z.z*a.w.w*a.y.x,
+        a.x.z*a.z.w*a.w.x + a.w.z*a.x.w*a.z.x + a.z.z*a.w.w*a.x.x - a.x.z*a.w.w*a.z.x - a.z.z*a.x.w*a.w.x - a.w.z*a.z.w*a.x.x,
+        a.x.z*a.w.w*a.y.x + a.y.z*a.x.w*a.w.x + a.w.z*a.y.w*a.x.x - a.x.z*a.y.w*a.w.x - a.w.z*a.x.w*a.y.x - a.y.z*a.w.w*a.x.x,
+        a.x.z*a.y.w*a.z.x + a.z.z*a.x.w*a.y.x + a.y.z*a.z.w*a.x.x - a.x.z*a.z.w*a.y.x - a.y.z*a.x.w*a.z.x - a.z.z*a.y.w*a.x.x },
+        { a.y.w*a.z.x*a.w.y + a.w.w*a.y.x*a.z.y + a.z.w*a.w.x*a.y.y - a.y.w*a.w.x*a.z.y - a.z.w*a.y.x*a.w.y - a.w.w*a.z.x*a.y.y,
+        a.x.w*a.w.x*a.z.y + a.z.w*a.x.x*a.w.y + a.w.w*a.z.x*a.x.y - a.x.w*a.z.x*a.w.y - a.w.w*a.x.x*a.z.y - a.z.w*a.w.x*a.x.y,
+        a.x.w*a.y.x*a.w.y + a.w.w*a.x.x*a.y.y + a.y.w*a.w.x*a.x.y - a.x.w*a.w.x*a.y.y - a.y.w*a.x.x*a.w.y - a.w.w*a.y.x*a.x.y,
+        a.x.w*a.z.x*a.y.y + a.y.w*a.x.x*a.z.y + a.z.w*a.y.x*a.x.y - a.x.w*a.y.x*a.z.y - a.z.w*a.x.x*a.y.y - a.y.w*a.z.x*a.x.y },
+        { a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z,
+        a.x.x*a.z.y*a.w.z + a.w.x*a.x.y*a.z.z + a.z.x*a.w.y*a.x.z - a.x.x*a.w.y*a.z.z - a.z.x*a.x.y*a.w.z - a.w.x*a.z.y*a.x.z,
+        a.x.x*a.w.y*a.y.z + a.y.x*a.x.y*a.w.z + a.w.x*a.y.y*a.x.z - a.x.x*a.y.y*a.w.z - a.w.x*a.x.y*a.y.z - a.y.x*a.w.y*a.x.z,
+        a.x.x*a.y.y*a.z.z + a.z.x*a.x.y*a.y.z + a.y.x*a.z.y*a.x.z - a.x.x*a.z.y*a.y.z - a.y.x*a.x.y*a.z.z - a.z.x*a.y.y*a.x.z } };
+}
+
+template<class T> T minalg::determinant(const mat<T, 4, 4> & a)
+{
+    return a.x.x*(a.y.y*a.z.z*a.w.w + a.w.y*a.y.z*a.z.w + a.z.y*a.w.z*a.y.w - a.y.y*a.w.z*a.z.w - a.z.y*a.y.z*a.w.w - a.w.y*a.z.z*a.y.w)
+        + a.x.y*(a.y.z*a.w.w*a.z.x + a.z.z*a.y.w*a.w.x + a.w.z*a.z.w*a.y.x - a.y.z*a.z.w*a.w.x - a.w.z*a.y.w*a.z.x - a.z.z*a.w.w*a.y.x)
+        + a.x.z*(a.y.w*a.z.x*a.w.y + a.w.w*a.y.x*a.z.y + a.z.w*a.w.x*a.y.y - a.y.w*a.w.x*a.z.y - a.z.w*a.y.x*a.w.y - a.w.w*a.z.x*a.y.y)
+        + a.x.w*(a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z);
+}
 
 using namespace minalg;
 
-////////////////////////////////
-//   Public Gizmo Interface   //
-////////////////////////////////
+//////////////////////
+//   Utiliy Math    //
+//////////////////////
 
-struct IGizmo
+struct rect
 {
-    virtual void on_drag(float2 cursor, bool = false) = 0;
-    virtual void on_release() = 0;
-    virtual void on_cancel() = 0;
+    int x0, y0, x1, y1;
+    int width() const { return x1 - x0; }
+    int height() const { return y1 - y0; }
+    int2 dims() const { return{ width(), height() }; }
+    float aspect_ratio() const { return (float)width() / height(); }
+    template<class T> bool contains(const minalg::vec<T, 2> & point) const { return point.x >= x0 && point.y >= y0 && point.x < x1 && point.y < y1; }
 };
 
-////////////////////////////////
-//   Public Gizmo Interface   //
-////////////////////////////////
-
-class GizmoEditor
+struct pose
 {
-    enum class GizmoMode : int
-    {
-        Translate,
-        Rotate,
-        Scale
-    };
+    float4 orientation; float3 position;
+    pose() : pose({ 0,0,0,1 }, { 0,0,0 }) {}
+    pose(const float4 & orientation) : pose(orientation, { 0,0,0 }) {}
+    pose(const float3 & position) : pose({ 0,0,0,1 }, position) {}
+    pose(const float4 & orientation, const float3 & position) : orientation(orientation), position(position) {}
 
-    GlCamera & sceneCamera;
-    std::shared_ptr<IGizmo> activeGizmo;
-    GizmoMode gizmoMode = GizmoMode::Translate;
-    Renderable * selectedObject = nullptr;
-        
-    uint32_t hotkey_translate = GLFW_KEY_1;
-    uint32_t hotkey_rotate = GLFW_KEY_2;
-    uint32_t hotkey_scale = GLFW_KEY_3;
-        
-    Renderable translationMesh;
-    Renderable rotationMesh;
-    Renderable scalingMesh;
-
-    std::shared_ptr<IGizmo> make_gizmo(ViewportRaycast & rc, Renderable & object, const float3 & axis, const float2 & cursor);
-        
-    void make_gizmo_meshes();
-        
-public:
-        
-    GizmoEditor(GlCamera & camera);
-    ~GizmoEditor();
-        
-    // For some editing applications it makes sense to rebind tools to different hotkeys
-    void rebind_hotkeys(const uint32_t translationKey, const uint32_t rotationKey, const uint32_t scaleKey)
-    {
-        hotkey_translate = translationKey;
-        hotkey_rotate = rotationKey;
-        hotkey_scale = scaleKey;
-    }
-        
-    // Passthrough input events along with a vector of scene models to pick against
-    void handle_input(const InputEvent & event, std::vector<Renderable> & sceneModels);
-        
-    Renderable & get_gizmo_mesh();
-        
-    Renderable * get_selected_object() { return selectedObject; }
+    float4x4 matrix() const { return pose_matrix(orientation, position); }
+    float3 transform_vector(const float3 & v) const { return qrot(orientation, v); }
+    float3 transform_point(const float3 & p) const { return position + transform_vector(p); }
+    float3 detransform_point(const float3 & p) const { return detransform_vector(p - position); }
+    float3 detransform_vector(const float3 & v) const { return qrot(qconj(orientation), v); }
 };
+
+struct ray { float3 origin, direction; };
+struct geometry_vertex { float3 position, normal; };
+struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<int3> triangles; };
+
+inline ray transform(const pose & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
+inline ray detransform(const pose & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
+
+bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t = 0);
+bool intersect_ray_triangle(const ray & ray, const float3 & v0, const float3 & v1, const float3 & v2, float * hit_t = 0);
+bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit_t = 0, int * hit_tri = 0);
+
+geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices);
+geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices, std::initializer_list<float2> points);
+
+void compute_normals(geometry_mesh & mesh);
+
+struct camera
+{
+    float yfov, near_clip, far_clip;
+    float3 position;
+    float pitch, yaw;
+    float4 get_orientation() const { return qmul(rotation_quat(float3(0, 1, 0), yaw), rotation_quat(float3(1, 0, 0), pitch)); }
+    float4x4 get_view_matrix() const { return mul(rotation_matrix(qconj(get_orientation())), translation_matrix(-position)); }
+    float4x4 get_projection_matrix(const rect & viewport) const { return perspective_matrix(yfov, viewport.aspect_ratio(), near_clip, far_clip); }
+    float4x4 get_viewproj_matrix(const rect & viewport) const { return mul(get_projection_matrix(viewport), get_view_matrix()); }
+    ray get_ray_from_pixel(const float2 & pixel, const rect & viewport) const;
+};
+
+enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, rotate_yz, rotate_zx, rotate_xy };
+
+struct gizmo_editor
+{
+    geometry_mesh geomeshes[9];     // Meshes used for drawing gizmo elements
+
+    bool bf, bl, bb, br, ml, mr;    // Instantaneous state of WASD keys and left/right mouse buttons
+    float timestep;                 // Timestep between the last frame and this one
+
+    rect viewport3d;                // Current 3D viewport used to render the scene
+    camera cam;                     // Current 3D camera used to render the scene
+    gizmo_mode gizmode;             // Mode that the gizmo is currently in
+
+    float3 original_position;       // Original position of an object being manipulated with a gizmo
+    float4 original_orientation;    // Original orientation of an object being manipulated with a gizmo
+    float3 click_offset;            // Offset from position of grabbed object to coordinates of clicked point
+
+    float2 cursor;                  // Cursor location
+
+    void begin_frame();             // Clear geometry buffer and update interaction data
+
+    void end_frame();               // 
+
+    // API for doing computations in 3D space
+    float4x4 get_view_matrix() const { return cam.get_view_matrix(); }
+    float4x4 get_projection_matrix() const { return cam.get_projection_matrix(viewport3d); }
+    float4x4 get_viewproj_matrix() const { return cam.get_viewproj_matrix(viewport3d); }
+    ray get_ray_from_cursor() const { return cam.get_ray_from_pixel(g.in.cursor, viewport3d); }
+};
+
+////////////////////////////
+//   Gizmo Definitions    //
+////////////////////////////
+
+void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, float3 & point);
+void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & point);
+void position_gizmo(gizmo_editor & g, int id, float3 & position);
+void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 & orientation);
 
 #endif
