@@ -1,0 +1,30 @@
+# User-specific files
+*.suo
+*.user
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+[Oo]bj/
+
+*.ilk
+*.obj
+*.pch
+*.pdb
+*.log
+
+# Visual C++ cache files
+ipch/
+*.opensdf
+*.sdf
+*.VC.*
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+
+intermediate/
+build/
+assets/
+*.mesh

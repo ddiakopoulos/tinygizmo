@@ -1,0 +1,11 @@
+In compliance with requirement 2 of the GLFW license, this file
+describes alterations that have been made to this distribution of
+GLFW.
+
+This folder uses a subset of the sources provided in the GLFW 3.1.2
+distribution from www.glfw.org. A Visual Studio 2013 project has
+been generated that is mostly equivalent to the output of the 
+official CMake scripts, except that it supports both the Win32 and
+x64 platforms.
+
+For the official, up-to-date sources, please visit www.glfw.org.
