@@ -1,13 +1,9 @@
 #include "gizmo.hpp"
-#include "procedural_mesh.hpp"
-
-using namespace avl;
 
 ///////////////////////
 // Translation Gizmo //
 ///////////////////////
 
-/*
 struct TranslationGizmo : public IGizmo
 {
     Renderable & object;
