@@ -14,6 +14,13 @@
 #include <memory>
 #include <vector>
 #include <iostream>
+#include <functional>
+
+// todo
+// [ ] snapping (linear + angular)
+// [ ] scale gizmo
+// [ ] multi-gizmo
+// [ ] local vs global
 
 // Visual Studio versions prior to 2015 lack constexpr support
 #if defined(_MSC_VER) && _MSC_VER < 1900 && !defined(constexpr)
@@ -401,9 +408,11 @@ template<class T> T minalg::determinant(const mat<T, 4, 4> & a)
 
 using namespace minalg;
 
-//////////////////////
-//   Utiliy Math    //
-//////////////////////
+///////////////////////
+//   Utility Math    //
+///////////////////////
+
+const float tau = 6.2831853f;
 
 struct rect
 {
@@ -441,22 +450,26 @@ bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t = 
 bool intersect_ray_triangle(const ray & ray, const float3 & v0, const float3 & v1, const float3 & v2, float * hit_t = 0);
 bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit_t = 0, int * hit_tri = 0);
 
+geometry_mesh make_box_geometry(const float3 & min_bounds, const float3 & max_bounds);
 geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices);
 geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices, std::initializer_list<float2> points);
 
 void compute_normals(geometry_mesh & mesh);
 
-struct camera
+struct camera_parameters
 {
     float yfov, near_clip, far_clip;
     float3 position;
-    float pitch, yaw;
-    float4 get_orientation() const { return qmul(rotation_quat(float3(0, 1, 0), yaw), rotation_quat(float3(1, 0, 0), pitch)); }
-    float4x4 get_view_matrix() const { return mul(rotation_matrix(qconj(get_orientation())), translation_matrix(-position)); }
-    float4x4 get_projection_matrix(const rect & viewport) const { return perspective_matrix(yfov, viewport.aspect_ratio(), near_clip, far_clip); }
-    float4x4 get_viewproj_matrix(const rect & viewport) const { return mul(get_projection_matrix(viewport), get_view_matrix()); }
-    ray get_ray_from_pixel(const float2 & pixel, const rect & viewport) const;
+    float4 orientation;
 };
+
+//float4 get_orientation() const { return qmul(rotation_quat(float3(0, 1, 0), yaw), rotation_quat(float3(1, 0, 0), pitch)); }
+
+inline float4x4 get_view_matrix(const camera_parameters & cam) { return mul(rotation_matrix(qconj(cam.orientation)), translation_matrix(-cam.position)); }
+inline float4x4 get_projection_matrix(const rect & viewport, const camera_parameters & cam) { return perspective_matrix(cam.yfov, viewport.aspect_ratio(), cam.near_clip, cam.far_clip); }
+inline float4x4 get_viewproj_matrix(const rect & viewport, const camera_parameters & cam) { return mul(get_projection_matrix(viewport, cam), get_view_matrix(cam)); }
+
+ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam);
 
 enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, rotate_yz, rotate_zx, rotate_xy };
 
@@ -464,28 +477,40 @@ struct gizmo_editor
 {
     geometry_mesh geomeshes[9];     // Meshes used for drawing gizmo elements
 
-    bool bf, bl, bb, br, ml, mr;    // Instantaneous state of WASD keys and left/right mouse buttons
-    float timestep;                 // Timestep between the last frame and this one
+    struct interaction_state
+    {
+        bool mouse_left, mouse_right;
+        bool hotkey_translate;
+        bool hotkey_rotate;
+        bool hotkey_scale;
+        bool hotkey_local;
+        float timestep;                 // Timestep between the last frame and this one
+        rect viewport;                  // Current 3D viewport used to render the scene
+        float2 cursor;                  // Current cursor location
+        camera_parameters cam;          // ... 
+    };
 
-    rect viewport3d;                // Current 3D viewport used to render the scene
-    camera cam;                     // Current 3D camera used to render the scene
+    interaction_state active_state;
+    interaction_state last_state;
+
     gizmo_mode gizmode;             // Mode that the gizmo is currently in
 
     float3 original_position;       // Original position of an object being manipulated with a gizmo
     float4 original_orientation;    // Original orientation of an object being manipulated with a gizmo
     float3 click_offset;            // Offset from position of grabbed object to coordinates of clicked point
 
-    float2 cursor;                  // Cursor location
+    void update(interaction_state & state);  // Clear geometry buffer and update interaction data
 
-    void begin_frame();             // Clear geometry buffer and update interaction data
+    void draw();                             // Draw
 
-    void end_frame();               // 
+    std::function<void()> render;                           // Callback to render the gizmo meshes
 
     // API for doing computations in 3D space
-    float4x4 get_view_matrix() const { return cam.get_view_matrix(); }
-    float4x4 get_projection_matrix() const { return cam.get_projection_matrix(viewport3d); }
-    float4x4 get_viewproj_matrix() const { return cam.get_viewproj_matrix(viewport3d); }
-    ray get_ray_from_cursor() const { return cam.get_ray_from_pixel(g.in.cursor, viewport3d); }
+    //float4x4 get_view_matrix() const { return cam.get_view_matrix(); }
+    //float4x4 get_projection_matrix() const { return cam.get_projection_matrix(viewport3d); }
+    //float4x4 get_viewproj_matrix() const { return cam.get_viewproj_matrix(viewport3d); }
+
+    ray get_ray_from_cursor() const { return cam.get_ray_from_pixel(active_state.cursor, active_state.viewport); }
 };
 
 ////////////////////////////
@@ -496,5 +521,6 @@ void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, fl
 void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & point);
 void position_gizmo(gizmo_editor & g, int id, float3 & position);
 void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 & orientation);
+// scale_gizmo
 
 #endif
