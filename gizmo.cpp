@@ -344,16 +344,10 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
     for (int i = 0; i < 6; ++i)
     {
         gizmo_renderable r;
-
         r.mesh = g.geomeshes[i];
         r.color = colors[i];
-
-        // transform local coordinates into worldspace
         for (auto & v : r.mesh.vertices)
-        {
-            v.position = transform_coord(model, v.position);
-        }
-
+        v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
 }
@@ -442,16 +436,9 @@ void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 &
     for (int i = 6; i < 9; ++i)
     {
         gizmo_renderable r;
-
         r.mesh = g.geomeshes[i];
         r.color = colors[i - 6];
-
-        // transform local coordinates into worldspace
-        for (auto & v : r.mesh.vertices)
-        {
-            v.position = transform_coord(model, v.position);
-        }
-
+        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
 }

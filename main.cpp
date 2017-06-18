@@ -51,6 +51,9 @@ void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
     const std::vector<linalg::aliases::float3> & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
     const std::vector<linalg::aliases::uint3> & tris = reinterpret_cast<const std::vector<linalg::aliases::uint3> &>(cpu.triangles);
 
+    std::cout << "Uploading: " << verts.size() << " vertices" << std::endl;
+    std::cout << "Uploading: " << tris.size() << " triangles" << std::endl;
+
     // todo - normals
     gpu->set_vertices(verts, GL_STREAM_DRAW);
     gpu->set_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, position));
@@ -64,6 +67,12 @@ std::unique_ptr<GlMesh> gizmoEditorMesh;
 
 int main(int argc, char * argv[])
 {
+    camera cam = {};
+    cam.yfov = 1.0f;
+    cam.near_clip = 0.1f;
+    cam.far_clip = 16.0f;
+    cam.position = { 0,1.5f,4 };
+
     try
     {
         win.reset(new Window(1280, 800, "gizmin-example"));
@@ -73,8 +82,12 @@ int main(int argc, char * argv[])
         std::cout << "Caught GLFW window exception: " << e.what() << std::endl;
     }
 
+    linalg::aliases::int2 windowSize = win->get_window_size();
+    wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
+
+
     linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
-    linalg::aliases::float4x4 fakeViewProj = identity4x4;
+    //linalg::aliases::float4x4 fakeViewProj = identity4x4;
 
     gizmoEditorMesh.reset(new GlMesh());
 
@@ -83,16 +96,9 @@ int main(int argc, char * argv[])
 
     gizmoEditor.render = [&](const geometry_mesh & r)
     {
-        // Upload data to the GPU
         upload_mesh(r, gizmoEditorMesh.get());
-
-        // Draw it!
-        draw_mesh(wireframeShader.get(), gizmoEditorMesh.get(), fakeViewProj, identity4x4);
+        draw_mesh(wireframeShader.get(), gizmoEditorMesh.get(), cam.get_viewproj_matrix({ 0, 0, windowSize.x, windowSize.y }), identity4x4);
     };
-
-    linalg::aliases::int2 windowSize = win->get_window_size();
-
-    wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
 
     win->on_char = [&](int codepoint)
     {
@@ -140,6 +146,8 @@ int main(int argc, char * argv[])
         }
     };
 
+    float3 gp;
+
     auto t0 = std::chrono::high_resolution_clock::now();
     while (!win->should_close())
     {
@@ -159,15 +167,20 @@ int main(int argc, char * argv[])
         
         // gizmo input interaction state populated from win->on_input(...) callback above
         // now populate other app parameters: 
-        gis.viewport = rect{ 0, 0, windowSize.x, windowSize.y };
+
+        linalg::aliases::float4 cameraOrientation = cam.get_orientation();
+
+        gis.viewport = rect{0, 0, windowSize.x, windowSize.y};
         gis.timestep = timestep;
-        gis.cam.near_clip = 0.01f;
-        gis.cam.near_clip = 64.0f;
-        gis.cam.yfov = tau / 2.f;
-        gis.cam.position = float3(0, 0, 0);
-        gis.cam.orientation = float4(0, 0, 0, 1);
+        gis.cam.near_clip = cam.near_clip;
+        gis.cam.near_clip = cam.far_clip;
+        gis.cam.yfov = cam.yfov;
+        gis.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
+        gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
         gizmoEditor.update(gis);
+        
+        position_gizmo(gizmoEditor, 0, gp);
 
         //glPushMatrix();
         //glOrtho(0, windowSize.x, windowSize.y, 0, -1, +1);

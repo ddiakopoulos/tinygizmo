@@ -20,6 +20,17 @@
 //   Windowing & App Lifecycle   //
 ///////////////////////////////////
 
+struct camera
+{
+    float yfov, near_clip, far_clip;
+    linalg::aliases::float3 position;
+    float pitch, yaw;
+    linalg::aliases::float4 get_orientation() const { return qmul(rotation_quat(linalg::aliases::float3(0, 1, 0), yaw), rotation_quat(linalg::aliases::float3(1, 0, 0), pitch)); }
+    linalg::aliases::float4x4 get_view_matrix() const { return mul(rotation_matrix(qconj(get_orientation())), translation_matrix(-position)); }
+    linalg::aliases::float4x4 get_projection_matrix(const rect & viewport) const { return linalg::perspective_matrix(yfov, viewport.aspect_ratio(), near_clip, far_clip); }
+    linalg::aliases::float4x4 get_viewproj_matrix(const rect & viewport) const { return mul(get_projection_matrix(viewport), get_view_matrix()); }
+};
+
 struct InputEvent
 {
     enum Type { CURSOR, MOUSE, KEY, CHAR, SCROLL };
