@@ -495,7 +495,7 @@ struct gizmo_editor
 
     struct interaction_state
     {
-        bool mouse_left, mouse_right;
+        bool mouse_left;
         bool hotkey_translate;
         bool hotkey_rotate;
         bool hotkey_scale;

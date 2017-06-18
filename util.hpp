@@ -3,7 +3,6 @@
 #ifndef gizmin_example_util_hpp
 #define gizmin_example_util_hpp
 
-#include "linalg_util.hpp"
 #include <functional>
 #include <vector>
 
@@ -14,9 +13,65 @@
 #define GLFW_INCLUDE_GLU
 #include "GLFW\glfw3.h"
 
+#include "gizmo.hpp"
+using namespace minalg;
+
 ///////////////////////////////////
 //   Windowing & App Lifecycle   //
 ///////////////////////////////////
+
+static InputEvent make_input_event(GLFWwindow * window, InputEvent::Type type, const float2 & cursor, int action)
+{
+    static bool isDragging = false;
+
+    InputEvent e;
+    e.window = window;
+    e.type = type;
+    e.cursor = cursor;
+    e.action = action;
+    e.mods = 0;
+
+    glfwGetWindowSize(window, &e.windowSize.x, &e.windowSize.y);
+
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) | glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT)) e.mods |= GLFW_MOD_SHIFT;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) | glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL)) e.mods |= GLFW_MOD_CONTROL;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) | glfwGetKey(window, GLFW_KEY_RIGHT_ALT)) e.mods |= GLFW_MOD_ALT;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SUPER) | glfwGetKey(window, GLFW_KEY_RIGHT_SUPER)) e.mods |= GLFW_MOD_SUPER;
+
+    if (type == InputEvent::MOUSE)
+    {
+        if (e.is_mouse_down()) isDragging = true;
+        else if (e.is_mouse_up()) isDragging = false;
+    }
+    e.drag = isDragging;
+
+    return e;
+}
+
+struct InputEvent
+{
+    enum Type { CURSOR, MOUSE, KEY, CHAR, SCROLL };
+
+    GLFWwindow * window;
+    int2 windowSize;
+
+    Type type;
+    int action;
+    int mods;
+
+    float2 cursor;
+    bool drag = false;
+
+    uint2 value; // button, key, codepoint, scrollX, scrollY
+
+    bool is_down() const { return action != GLFW_RELEASE; }
+    bool is_up() const { return action == GLFW_RELEASE; }
+
+    bool using_shift_key() const { return mods & GLFW_MOD_SHIFT; };
+    bool using_control_key() const { return mods & GLFW_MOD_CONTROL; };
+    bool using_alt_key() const { return mods & GLFW_MOD_ALT; };
+    bool using_super_key() const { return mods & GLFW_MOD_SUPER; };
+};
 
 class Window
 {
@@ -27,6 +82,7 @@ public:
     std::function<void(int button, int action, int mods)> on_mouse_button;
     std::function<void(float2 pos)> on_cursor_pos;
     std::function<void(int numFiles, const char ** paths)> on_drop;
+    std::function<void(const InputEvent & event)> on_input;
 
     Window(int width, int height, const char * title)
     {

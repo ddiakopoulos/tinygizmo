@@ -37,11 +37,11 @@ constexpr const char basic_wireframe_frag[] = R"(#version 330
 //   Main Application   //
 //////////////////////////
 
-void draw_mesh(GlShader * shader, GlMesh * mesh, const float4x4 & viewProj, const float4x4 & model) 
+void draw_mesh(GlShader * shader, GlMesh * mesh, const float4x4 & viewProj, const float4x4 & model, const float3 & color) 
 {
     auto modelViewProjectionMatrix = mul(viewProj, model);
     shader->bind();
-    shader->uniform("u_color", float3(1, 1, 1));
+    shader->uniform("u_color", color);
     shader->uniform("u_mvp", modelViewProjectionMatrix);
     mesh->draw_elements();
     shader->unbind();
@@ -70,24 +70,64 @@ int main(int argc, char * argv[])
         std::cout << "Caught GLFW window exception: " << e.what() << std::endl;
     }
 
+    gizmo_editor::interaction_state gis;
+    gizmo_editor gizmoEditor;
+
+    gizmoEditor.render = []()
+    {
+
+    };
+
     int2 windowSize = win->get_window_size();
 
     wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
 
-    win->on_key = [&](int key, int action, int mods)
+    win->on_char = [&](int codepoint)
     {
+        auto e = make_input_event(win->get_glfw_window_handle(), InputEvent::CHAR, win->get_cursor_pos(), 0);
+        e.value[0] = codepoint;
+        if (win->on_input) win->on_input(e);
     };
 
-    win->on_drop = [&](int numFiles, const char ** paths)
+    win->on_key = [&](int key, int action, int mods)
     {
+        auto e = make_input_event(win->get_glfw_window_handle(), InputEvent::KEY, win->get_cursor_pos(), action);
+        e.value[0] = key;
+        if (win->on_input) win->on_input(e);
     };
 
     win->on_mouse_button = [&](int button, int action, int mods)
     {
+        auto e = make_input_event(win->get_glfw_window_handle(), InputEvent::MOUSE, win->get_cursor_pos(), action);
+        e.value[0] = button;
+        if (win->on_input) win->on_input(e);
     };
 
     win->on_cursor_pos = [&](float2 pos)
     {
+        auto e = make_input_event(win->get_glfw_window_handle(), InputEvent::CURSOR, win->get_cursor_pos(), 0);
+        if (win->on_input) win->on_input(e);
+    };
+
+    win->on_input = [&](const InputEvent & event)
+    {
+        if (event.type == InputEvent::KEY)
+        {
+            if (event.value[0] == GLFW_KEY_L) gis.hotkey_local = event.is_down();
+            if (event.value[0] == GLFW_KEY_T) gis.hotkey_translate = event.is_down();
+            if (event.value[0] == GLFW_KEY_R) gis.hotkey_rotate = event.is_down();
+            if (event.value[0] == GLFW_KEY_S) gis.hotkey_scale = event.is_down();
+        }
+
+        if (event.type == InputEvent::MOUSE)
+        {
+            gis.mouse_left = event.is_down();
+        }
+
+        if (event.type == InputEvent::CURSOR)
+        {
+            gis.cursor = event.cursor;
+        }
     };
 
     auto t0 = std::chrono::high_resolution_clock::now();
@@ -106,10 +146,24 @@ int main(int argc, char * argv[])
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        
+        // gizmo input interaction state populated from win->on_input(...) callback above
+        // now populate other app parameters: 
+        gis.viewport = rect{ 0, 0, windowSize.x, windowSize.y };
+        gis.timestep = timestep;
+        gis.cam.near_clip = 0.01f;
+        gis.cam.near_clip = 64.0f;
+        gis.cam.yfov = tau / 2.f;
+        gis.cam.position = float3(0, 0, 0);
+        gis.cam.orientation = float4(0, 0, 0, 1);
+
+        gizmoEditor.update(gis);
 
         //glPushMatrix();
         //glOrtho(0, windowSize.x, windowSize.y, 0, -1, +1);
         //glPopMatrix();
+
+        gizmoEditor.draw();
 
         gl_check_error(__FILE__, __LINE__);
 
