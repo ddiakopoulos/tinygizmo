@@ -12,6 +12,13 @@ inline bool has_released(const gizmo_editor::interaction_state & last, const giz
     return false;
 }
 
+inline bool is_dragging(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
+{
+    if (last.mouse_left == true && active.mouse_left == true) return true;
+    return false;
+}
+
+
 ///////////////////////
 // Translation Gizmo //
 ///////////////////////
@@ -283,6 +290,8 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))
     {
+        std::cout << "Clicked ..." << std::endl;
+
         g.gizmode = gizmo_mode::none;
         auto ray = g.get_ray_from_cursor(g.active_state.cam);
         ray.origin -= position;
@@ -299,14 +308,15 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         if (g.gizmode != gizmo_mode::none)
         {
             g.click_offset = ray.origin + ray.direction*t;
+            std::cout << "Mode: " << (int) g.gizmode << std::endl;
+            std::cout << "click offset " << g.click_offset << std::endl;
             // g.g.set_pressed(id);
         }
     }
 
     // TODO
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
-    /*
-    if (g.g.is_pressed(id))
+    if (is_dragging(g.last_state, g.active_state))
     {
         position += g.click_offset;
         switch (g.gizmode)
@@ -320,11 +330,11 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         }
         position -= g.click_offset;
     }
-    */
 
     // On release, deactivate the current gizmo mode
     if (has_released(g.last_state, g.active_state))
     {
+        std::cout << "Released ..." << std::endl;
         g.gizmode = gizmo_mode::none;
     }
 
@@ -339,15 +349,14 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         g.gizmode == gizmo_mode::translate_xy ? float3(1,1,0.5f) : float3(1,1,0),
     };
 
-    auto model = translation_matrix(position), modelIT = inverse(transpose(model));
+    auto model = translation_matrix(position);
 
     for (int i = 0; i < 6; ++i)
     {
         gizmo_renderable r;
         r.mesh = g.geomeshes[i];
         r.color = colors[i];
-        for (auto & v : r.mesh.vertices)
-        v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
 }

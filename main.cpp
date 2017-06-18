@@ -51,8 +51,8 @@ void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
     const std::vector<linalg::aliases::float3> & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
     const std::vector<linalg::aliases::uint3> & tris = reinterpret_cast<const std::vector<linalg::aliases::uint3> &>(cpu.triangles);
 
-    std::cout << "Uploading: " << verts.size() << " vertices" << std::endl;
-    std::cout << "Uploading: " << tris.size() << " triangles" << std::endl;
+    //std::cout << "Uploading: " << verts.size() << " vertices" << std::endl;
+    //std::cout << "Uploading: " << tris.size() << " triangles" << std::endl;
 
     // todo - normals
     gpu->set_vertices(verts, GL_STREAM_DRAW);
@@ -67,10 +67,12 @@ std::unique_ptr<GlMesh> gizmoEditorMesh;
 
 int main(int argc, char * argv[])
 {
+    bool ml = 0, mr = 0, bf = 0, bl = 0, bb = 0, br = 0;
+
     camera cam = {};
     cam.yfov = 1.0f;
-    cam.near_clip = 0.1f;
-    cam.far_clip = 16.0f;
+    cam.near_clip = 0.01f;
+    cam.far_clip = 32.0f;
     cam.position = { 0,1.5f,4 };
 
     try
@@ -134,15 +136,30 @@ int main(int argc, char * argv[])
             if (event.value[0] == GLFW_KEY_L) gis.hotkey_local = event.is_down();
             if (event.value[0] == GLFW_KEY_T) gis.hotkey_translate = event.is_down();
             if (event.value[0] == GLFW_KEY_R) gis.hotkey_rotate = event.is_down();
-            if (event.value[0] == GLFW_KEY_S) gis.hotkey_scale = event.is_down();
+            //if (event.value[0] == GLFW_KEY_S) gis.hotkey_scale = event.is_down();
+
+            if (event.value[0] == GLFW_KEY_W) bf = event.is_down();
+            if (event.value[0] == GLFW_KEY_A) bl = event.is_down();
+            if (event.value[0] == GLFW_KEY_S) bb = event.is_down();
+            if (event.value[0] == GLFW_KEY_D) br = event.is_down();
+
         }
         else if (event.type == InputEvent::MOUSE)
         {
             gis.mouse_left = event.is_down();
+
+            if (event.value[0] == GLFW_MOUSE_BUTTON_LEFT) ml = event.is_down();
+            if (event.value[0] == GLFW_MOUSE_BUTTON_RIGHT) mr = event.is_down();
         }
         else if (event.type == InputEvent::CURSOR)
         {
             gis.cursor = minalg::float2(event.cursor.x, event.cursor.y);
+
+            if (mr)
+            {
+                //cam.yaw -= e.motion.x * 0.01f;
+                //cam.pitch -= e.motion.y * 0.01f;
+            }
         }
     };
 
@@ -157,10 +174,21 @@ int main(int argc, char * argv[])
         float timestep = std::chrono::duration<float>(t1 - t0).count();
         t0 = t1;
 
+        if (mr)
+        {
+            const linalg::aliases::float4 orientation = cam.get_orientation();
+            linalg::aliases::float3 move;
+            if (bf) move -= qzdir(orientation);
+            if (bl) move -= qxdir(orientation);
+            if (bb) move += qzdir(orientation);
+            if (br) move += qxdir(orientation);
+            if (length2(move) > 0) cam.position += normalize(move) * (timestep * 8);
+        }
+
         glViewport(0, 0, windowSize.x, windowSize.y);
 
-        glEnable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
+        //glEnable(GL_CULL_FACE);
+        //glEnable(GL_DEPTH_TEST);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -173,7 +201,7 @@ int main(int argc, char * argv[])
         gis.viewport = rect{0, 0, windowSize.x, windowSize.y};
         gis.timestep = timestep;
         gis.cam.near_clip = cam.near_clip;
-        gis.cam.near_clip = cam.far_clip;
+        gis.cam.far_clip = cam.far_clip;
         gis.cam.yfov = cam.yfov;
         gis.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
