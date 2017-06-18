@@ -227,26 +227,16 @@ void gizmo_editor::draw()
 {
     if (render)
     {
-        geometry_mesh r;
-        
-        // Combine all gizmo sub-meshes into one super-mesh
+        geometry_mesh r; // Combine all gizmo sub-meshes into one super-mesh
         for (auto & m : drawlist)
         {
-            uint32_t numVerts = m.mesh.vertices.size();
-
+            uint32_t numVerts = r.vertices.size();
             r.vertices.insert(r.vertices.end(), m.mesh.vertices.begin(), m.mesh.vertices.end());
-
-            for (auto & f : r.triangles)
-            {
-                r.triangles.push_back({numVerts + f.x, numVerts + f.y, numVerts + f.z });
-            }
-
+            for (auto & f : m.mesh.triangles) r.triangles.push_back({numVerts + f.x, numVerts + f.y, numVerts + f.z });
             for (auto & v : r.vertices) v.color = m.color; // Take the color and shove it into a per-vertex attribute
         }
-
         render(r);
     }
-
     last_state = active_state;
 }
 
