@@ -18,7 +18,6 @@ inline bool is_dragging(const gizmo_editor::interaction_state & last, const gizm
     return false;
 }
 
-
 ///////////////////////
 // Translation Gizmo //
 ///////////////////////
@@ -233,8 +232,15 @@ void gizmo_editor::draw()
         // Combine all gizmo sub-meshes into one super-mesh
         for (auto & m : drawlist)
         {
+            uint32_t numVerts = m.mesh.vertices.size();
+
             r.vertices.insert(r.vertices.end(), m.mesh.vertices.begin(), m.mesh.vertices.end());
-            r.triangles.insert(r.triangles.end(), m.mesh.triangles.begin(), m.mesh.triangles.end());
+
+            for (auto & f : r.triangles)
+            {
+                r.triangles.push_back({numVerts + f.x, numVerts + f.y, numVerts + f.z });
+            }
+
             for (auto & v : r.vertices) v.color = m.color; // Take the color and shove it into a per-vertex attribute
         }
 
@@ -290,8 +296,6 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))
     {
-        std::cout << "Clicked ..." << std::endl;
-
         g.gizmode = gizmo_mode::none;
         auto ray = g.get_ray_from_cursor(g.active_state.cam);
         ray.origin -= position;
@@ -308,8 +312,6 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         if (g.gizmode != gizmo_mode::none)
         {
             g.click_offset = ray.origin + ray.direction*t;
-            std::cout << "Mode: " << (int) g.gizmode << std::endl;
-            std::cout << "click offset " << g.click_offset << std::endl;
             // g.g.set_pressed(id);
         }
     }
@@ -334,7 +336,6 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
     // On release, deactivate the current gizmo mode
     if (has_released(g.last_state, g.active_state))
     {
-        std::cout << "Released ..." << std::endl;
         g.gizmode = gizmo_mode::none;
     }
 

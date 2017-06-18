@@ -14,7 +14,8 @@
 
 constexpr const char basic_wireframe_vert[] = R"(#version 330
     layout(location = 0) in vec3 vertex;
-    layout(location = 1) in vec3 color;
+    layout(location = 1) in vec3 normal;
+    layout(location = 2) in vec3 color;
     out vec3 v_color;
     uniform mat4 u_mvp;
     void main()
@@ -50,14 +51,10 @@ void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
 {
     const std::vector<linalg::aliases::float3> & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
     const std::vector<linalg::aliases::uint3> & tris = reinterpret_cast<const std::vector<linalg::aliases::uint3> &>(cpu.triangles);
-
-    //std::cout << "Uploading: " << verts.size() << " vertices" << std::endl;
-    //std::cout << "Uploading: " << tris.size() << " triangles" << std::endl;
-
-    // todo - normals
     gpu->set_vertices(verts, GL_STREAM_DRAW);
     gpu->set_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, position));
-    gpu->set_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, color));
+    gpu->set_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, normal));
+    gpu->set_attribute(2, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, color));
     gpu->set_elements(tris, GL_STREAM_DRAW);
 }
 
