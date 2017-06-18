@@ -184,8 +184,8 @@ int main(int argc, char * argv[])
 
         glViewport(0, 0, windowSize.x, windowSize.y);
 
-        //glEnable(GL_CULL_FACE);
-        //glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);

@@ -231,9 +231,9 @@ void gizmo_editor::draw()
         for (auto & m : drawlist)
         {
             uint32_t numVerts = r.vertices.size();
-            r.vertices.insert(r.vertices.end(), m.mesh.vertices.begin(), m.mesh.vertices.end());
+            auto it = r.vertices.insert(r.vertices.end(), m.mesh.vertices.begin(), m.mesh.vertices.end());
             for (auto & f : m.mesh.triangles) r.triangles.push_back({numVerts + f.x, numVerts + f.y, numVerts + f.z });
-            for (auto & v : r.vertices) v.color = m.color; // Take the color and shove it into a per-vertex attribute
+            for (; it != r.vertices.end(); ++it) it->color = m.color; // Take the color and shove it into a per-vertex attribute
         }
         render(r);
     }
