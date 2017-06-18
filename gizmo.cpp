@@ -209,14 +209,48 @@ gizmo_editor::gizmo_editor()
 void gizmo_editor::update(interaction_state & state)
 {
     active_state = state;
+
     drawlist.clear();
+
+    /*
+    switch (g.in.type)
+    {
+    case input::key_down: case input::key_up:
+        switch (g.in.key)
+        {
+        case GLFW_KEY_W: bf = g.in.is_down(); break;
+        case GLFW_KEY_A: bl = g.in.is_down(); break;
+        case GLFW_KEY_S: bb = g.in.is_down(); break;
+        case GLFW_KEY_D: br = g.in.is_down(); break;
+        }
+        break;
+    case input::mouse_down: case input::mouse_up:
+        switch (g.in.button)
+        {
+        case GLFW_MOUSE_BUTTON_LEFT: ml = g.in.is_down(); break;
+        case GLFW_MOUSE_BUTTON_RIGHT: mr = g.in.is_down(); break;
+        }
+        break;
+    }
+    */
+
 }
 
 void gizmo_editor::draw()
 {
     if (render)
     {
-        render();
+        geometry_mesh r;
+        
+        // Combine all gizmo sub-meshes into one super-mesh
+        for (auto & m : drawlist)
+        {
+            r.vertices.insert(r.vertices.end(), m.mesh.vertices.begin(), m.mesh.vertices.end());
+            r.triangles.insert(r.triangles.end(), m.mesh.triangles.begin(), m.mesh.triangles.end());
+            for (auto & v : r.vertices) v.color = m.color; // Take the color and shove it into a per-vertex attribute
+        }
+
+        render(r);
     }
 
     last_state = active_state;

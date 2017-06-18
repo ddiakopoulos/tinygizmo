@@ -455,7 +455,7 @@ struct pose
 };
 
 struct ray { float3 origin, direction; };
-struct geometry_vertex { float3 position, normal; };
+struct geometry_vertex { float3 position, normal; float3 color; };
 struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<int3> triangles; };
 struct gizmo_renderable { geometry_mesh mesh; float3 color; };
 
@@ -519,7 +519,7 @@ struct gizmo_editor
     void update(interaction_state & state); // Clear geometry buffer and update interaction data
     void draw();                            // Draw
 
-    std::function<void()> render;           // Callback to render the gizmo meshes
+    std::function<void(const geometry_mesh & r)> render;           // Callback to render the gizmo meshes
 
     ray get_ray_from_cursor(const camera_parameters & cam) const { return get_ray_from_pixel(active_state.cursor, active_state.viewport, cam); }
 };

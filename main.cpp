@@ -14,22 +14,21 @@
 
 constexpr const char basic_wireframe_vert[] = R"(#version 330
     layout(location = 0) in vec3 vertex;
-    uniform mat4 u_mvp;
-    uniform vec3 u_color;
-    out vec3 color;
+    layout(location = 1) in vec3 color;
+    out vec3 v_color;
     void main()
     {
         gl_Position = u_mvp * vec4(vertex.xyz, 1);
-        color = u_color;
+        v_color = color;
     }
 )";
 
 constexpr const char basic_wireframe_frag[] = R"(#version 330
-    in vec3 color;
+    in vec3 v_color;
     out vec4 f_color;
     void main()
     {
-        f_color = vec4(color.rgb, 1);
+        f_color = vec4(v_color, 1);
     }
 )";
 
@@ -37,27 +36,26 @@ constexpr const char basic_wireframe_frag[] = R"(#version 330
 //   Main Application   //
 //////////////////////////
 
-void draw_mesh(GlShader * shader, GlMesh * mesh, const float4x4 & viewProj, const float4x4 & model, const float3 & color) 
+void draw_mesh(GlShader * shader, GlMesh * mesh, const float4x4 & viewProj, const float4x4 & model) 
 {
     auto modelViewProjectionMatrix = mul(viewProj, model);
     shader->bind();
-    shader->uniform("u_color", color);
     shader->uniform("u_mvp", modelViewProjectionMatrix);
     mesh->draw_elements();
     shader->unbind();
 }
 
-/* 
-void upload_mesh(const runtime_mesh & cpu, GlMesh * gpu)
+void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
 {
-    gpu->set_vertices(cpu.vertices, GL_STATIC_DRAW);
+    gpu->set_vertices(cpu.vertices, GL_STREAM_DRAW);
     gpu->set_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(float3), ((float*)0) + 0);
-    gpu->set_non_indexed(GL_LINES);
+    gpu->set_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(float3), ((float*)0) + 3);
+    gpu->set_elements(cpu.triangles, GL_STREAM_DRAW);
 }
-*/
 
 std::unique_ptr<Window> win;
 std::unique_ptr<GlShader> wireframeShader;
+std::unique_ptr<GlMesh> gizmoEditorMesh;
 
 int main(int argc, char * argv[])
 {
@@ -70,12 +68,20 @@ int main(int argc, char * argv[])
         std::cout << "Caught GLFW window exception: " << e.what() << std::endl;
     }
 
+    float4x4 fakeViewProj = Identity4x4;
+
+    gizmoEditorMesh.reset(new GlMesh());
+
     gizmo_editor::interaction_state gis;
     gizmo_editor gizmoEditor;
 
-    gizmoEditor.render = []()
+    gizmoEditor.render = [&](const geometry_mesh & r)
     {
+        // Upload data to the GPU
+        upload_mesh(r, gizmoEditorMesh.get());
 
+        // Draw it!
+        draw_mesh(wireframeShader.get(), gizmoEditorMesh.get(), fakeViewProj, Identity4x4);
     };
 
     int2 windowSize = win->get_window_size();
@@ -103,9 +109,9 @@ int main(int argc, char * argv[])
         if (win->on_input) win->on_input(e);
     };
 
-    win->on_cursor_pos = [&](float2 pos)
+    win->on_cursor_pos = [&](float2 position)
     {
-        auto e = make_input_event(win->get_glfw_window_handle(), InputEvent::CURSOR, win->get_cursor_pos(), 0);
+        auto e = make_input_event(win->get_glfw_window_handle(), InputEvent::CURSOR, position, 0);
         if (win->on_input) win->on_input(e);
     };
 
@@ -118,13 +124,11 @@ int main(int argc, char * argv[])
             if (event.value[0] == GLFW_KEY_R) gis.hotkey_rotate = event.is_down();
             if (event.value[0] == GLFW_KEY_S) gis.hotkey_scale = event.is_down();
         }
-
-        if (event.type == InputEvent::MOUSE)
+        else if (event.type == InputEvent::MOUSE)
         {
             gis.mouse_left = event.is_down();
         }
-
-        if (event.type == InputEvent::CURSOR)
+        else if (event.type == InputEvent::CURSOR)
         {
             gis.cursor = event.cursor;
         }
