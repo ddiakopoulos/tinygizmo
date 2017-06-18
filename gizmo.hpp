@@ -334,13 +334,13 @@ namespace minalg
     template<class T, int M> constexpr mat<T, M, 2> transpose(const mat<T, 2, M> & m) { return{ m.row(0), m.row(1) }; }
     template<class T, int M> constexpr mat<T, M, 3> transpose(const mat<T, 3, M> & m) { return{ m.row(0), m.row(1), m.row(2) }; }
     template<class T, int M> constexpr mat<T, M, 4> transpose(const mat<T, 4, M> & m) { return{ m.row(0), m.row(1), m.row(2), m.row(3) }; }
-    template<class T> constexpr mat<T, 2, 2> adjugate(const mat<T, 2, 2> & a) { return{ { a.y.y, -a.x.y },{ -a.y.x, a.x.x } }; }
-    template<class T> constexpr mat<T, 3, 3> adjugate(const mat<T, 3, 3> & a);
-    template<class T> constexpr mat<T, 4, 4> adjugate(const mat<T, 4, 4> & a);
-    template<class T> constexpr T determinant(const mat<T, 2, 2> & a) { return a.x.x*a.y.y - a.x.y*a.y.x; }
-    template<class T> constexpr T determinant(const mat<T, 3, 3> & a) { return a.x.x*(a.y.y*a.z.z - a.z.y*a.y.z) + a.x.y*(a.y.z*a.z.x - a.z.z*a.y.x) + a.x.z*(a.y.x*a.z.y - a.z.x*a.y.y); }
-    template<class T> constexpr T determinant(const mat<T, 4, 4> & a);
-    template<class T, int N> constexpr mat<T, N, N> inverse(const mat<T, N, N> & a) { return adjugate(a) / determinant(a); }
+    template<class T> mat<T, 2, 2> adjugate(const mat<T, 2, 2> & a) { return{ { a.y.y, -a.x.y },{ -a.y.x, a.x.x } }; }
+    template<class T> mat<T, 3, 3> adjugate(const mat<T, 3, 3> & a);
+    template<class T> mat<T, 4, 4> adjugate(const mat<T, 4, 4> & a);
+    template<class T> T determinant(const mat<T, 2, 2> & a) { return a.x.x*a.y.y - a.x.y*a.y.x; }
+    template<class T> T determinant(const mat<T, 3, 3> & a) { return a.x.x*(a.y.y*a.z.z - a.z.y*a.y.z) + a.x.y*(a.y.z*a.z.x - a.z.z*a.y.x) + a.x.z*(a.y.x*a.z.y - a.z.x*a.y.y); }
+    template<class T> T determinant(const mat<T, 4, 4> & a);
+    template<class T, int N> mat<T, N, N> inverse(const mat<T, N, N> & a) { return adjugate(a) / determinant(a); }
 
     // Vectors and matrices can be used as ranges
     template<class T, int M>       T * begin(vec<T, M> & a) { return &a[0]; }
@@ -375,15 +375,6 @@ namespace minalg
     typedef mat<bool, 4, 4> bool4x4; typedef mat<int, 4, 4> int4x4; typedef mat<float, 4, 4> float4x4; typedef mat<double, 4, 4> double4x4;
 
 } // end namespace minalg
-
-static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
-static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
-
-template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
-template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
-template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
-template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
-template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
 
 // Definitions of functions too long to be defined inline
 template<class T> minalg::mat<T, 3, 3> minalg::adjugate(const mat<T, 3, 3> & a)
@@ -421,6 +412,15 @@ template<class T> T minalg::determinant(const mat<T, 4, 4> & a)
         + a.x.w*(a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z);
 }
 
+static const minalg::float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
+static const minalg::float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
+
+template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
+
 using namespace minalg;
 
 ///////////////////////
@@ -455,13 +455,12 @@ struct pose
 };
 
 struct ray { float3 origin, direction; };
-struct geometry_vertex { float3 position, normal; float3 color; };
-struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<int3> triangles; };
+struct geometry_vertex { float3 position, normal, color; };
+struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
 struct gizmo_renderable { geometry_mesh mesh; float3 color; };
 
 inline ray transform(const pose & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
 inline ray detransform(const pose & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
-
 inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
 
 bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t = 0);
@@ -481,16 +480,14 @@ struct camera_parameters
     float4 orientation;
 };
 
-inline float4x4 get_view_matrix(const camera_parameters & cam) { return mul(rotation_matrix(qconj(cam.orientation)), translation_matrix(-cam.position)); }
-inline float4x4 get_projection_matrix(const rect & viewport, const camera_parameters & cam) { return perspective_matrix(cam.yfov, viewport.aspect_ratio(), cam.near_clip, cam.far_clip); }
-inline float4x4 get_viewproj_matrix(const rect & viewport, const camera_parameters & cam) { return mul(get_projection_matrix(viewport, cam), get_view_matrix(cam)); }
-
 ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam);
 
 enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, rotate_yz, rotate_zx, rotate_xy };
 
 struct gizmo_editor
 {
+    gizmo_editor();
+
     geometry_mesh geomeshes[9];             // Meshes used for drawing gizmo elements
 
     struct interaction_state

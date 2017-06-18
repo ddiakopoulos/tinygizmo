@@ -68,10 +68,14 @@ bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit
 // Translation Gizmo //
 ///////////////////////
 
+float4x4 get_view_matrix(const camera_parameters & cam) { return mul(rotation_matrix(qconj(cam.orientation)), translation_matrix(-cam.position)); }
+float4x4 get_projection_matrix(const rect & viewport, const camera_parameters & cam) { return perspective_matrix(cam.yfov, viewport.aspect_ratio(), cam.near_clip, cam.far_clip); }
+float4x4 get_viewproj_matrix(const rect & viewport, const camera_parameters & cam) { return mul(get_projection_matrix(viewport, cam), get_view_matrix(cam)); }
+
 void compute_normals(geometry_mesh & mesh)
 {
     for (geometry_vertex & v : mesh.vertices) v.normal = float3();
-    for (int3 & t : mesh.triangles)
+    for (auto & t : mesh.triangles)
     {
         geometry_vertex & v0 = mesh.vertices[t.x], &v1 = mesh.vertices[t.y], &v2 = mesh.vertices[t.z];
         const float3 n = cross(v1.position - v0.position, v2.position - v0.position);
@@ -129,29 +133,30 @@ geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, c
 {
     // Generated curved surface
     geometry_mesh mesh;
-    for (int i = 0; i <= slices; ++i)
+
+    for (uint32_t i = 0; i <= slices; ++i)
     {
         const float tex_s = static_cast<float>(i) / slices, angle = (float)(i%slices) * tau / slices;
         const float3 arm = arm1 * std::cos(angle) + arm2 * std::sin(angle);
         mesh.vertices.push_back({ arm, normalize(arm) });
         mesh.vertices.push_back({ arm + axis, normalize(arm) });
     }
-    for (int i = 0; i<slices; ++i)
+    for (uint32_t i = 0; i<slices; ++i)
     {
         mesh.triangles.push_back({ i * 2, i * 2 + 2, i * 2 + 3 });
         mesh.triangles.push_back({ i * 2, i * 2 + 3, i * 2 + 1 });
     }
 
     // Generate caps
-    int base = mesh.vertices.size();
-    for (int i = 0; i<slices; ++i)
+    uint32_t base = (uint32_t) mesh.vertices.size();
+    for (uint32_t i = 0; i<slices; ++i)
     {
         const float angle = static_cast<float>(i%slices) * tau / slices, c = std::cos(angle), s = std::sin(angle);
         const float3 arm = arm1 * c + arm2 * s;
         mesh.vertices.push_back({ arm + axis, normalize(axis) });
         mesh.vertices.push_back({ arm, -normalize(axis) });
     }
-    for (int i = 2; i<slices; ++i)
+    for (uint32_t i = 2; i<slices; ++i)
     {
         mesh.triangles.push_back({ base, base + i * 2 - 2, base + i * 2 });
         mesh.triangles.push_back({ base + 1, base + i * 2 + 1, base + i * 2 - 1 });
@@ -174,10 +179,10 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
         {
             for (size_t j = 1; j < points.size(); ++j)
             {
-                int i0 = (i - 1)*points.size() + (j - 1);
-                int i1 = (i - 0)*points.size() + (j - 1);
-                int i2 = (i - 0)*points.size() + (j - 0);
-                int i3 = (i - 1)*points.size() + (j - 0);
+                uint32_t i0 = (i - 1)*points.size() + (j - 1);
+                uint32_t i1 = (i - 0)*points.size() + (j - 1);
+                uint32_t i2 = (i - 0)*points.size() + (j - 0);
+                uint32_t i3 = (i - 1)*points.size() + (j - 0);
                 mesh.triangles.push_back({ i0,i1,i2 });
                 mesh.triangles.push_back({ i0,i2,i3 });
             }
@@ -209,31 +214,7 @@ gizmo_editor::gizmo_editor()
 void gizmo_editor::update(interaction_state & state)
 {
     active_state = state;
-
     drawlist.clear();
-
-    /*
-    switch (g.in.type)
-    {
-    case input::key_down: case input::key_up:
-        switch (g.in.key)
-        {
-        case GLFW_KEY_W: bf = g.in.is_down(); break;
-        case GLFW_KEY_A: bl = g.in.is_down(); break;
-        case GLFW_KEY_S: bb = g.in.is_down(); break;
-        case GLFW_KEY_D: br = g.in.is_down(); break;
-        }
-        break;
-    case input::mouse_down: case input::mouse_up:
-        switch (g.in.button)
-        {
-        case GLFW_MOUSE_BUTTON_LEFT: ml = g.in.is_down(); break;
-        case GLFW_MOUSE_BUTTON_RIGHT: mr = g.in.is_down(); break;
-        }
-        break;
-    }
-    */
-
 }
 
 void gizmo_editor::draw()
