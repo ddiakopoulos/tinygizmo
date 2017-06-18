@@ -80,6 +80,20 @@ namespace minalg
 
     // Small, fixed-size matrix type, consisting of exactly M rows and N columns of type T, stored in column-major order.
     template<class T, int M, int N> struct mat;
+    template<class T, int M> struct mat<T, M, 2>
+    {
+        typedef vec<T, M>            V;
+        V                           x, y;
+        constexpr                   mat() : x(), y() {}
+        constexpr                   mat(V x_, V y_) : x(x_), y(y_) {}
+        constexpr explicit          mat(T s) : x(s), y(s) {}
+        constexpr explicit          mat(const T * p) : x(p + M * 0), y(p + M * 1) {}
+        template<class U>
+        constexpr explicit          mat(const mat<U, M, 2> & m) : mat(V(m.x), V(m.y)) {}
+        constexpr vec<T, 2>          row(int i) const { return{ x[i], y[i] }; }
+        constexpr const V &         operator[] (int j) const { return (&x)[j]; }
+        V &                         operator[] (int j) { return (&x)[j]; }
+    };
     template<class T, int M> struct mat<T, M, 3>
     {
         typedef vec<T, M>            V;
@@ -356,6 +370,7 @@ namespace minalg
     typedef vec<int, 2> int2; typedef vec<unsigned, 2> uint2; typedef vec<float, 2> float2; typedef vec<double, 2> double2;
     typedef vec<int, 3> int3; typedef vec<unsigned, 3> uint3; typedef vec<float, 3> float3; typedef vec<double, 3> double3;
     typedef vec<int, 4> int4; typedef vec<unsigned, 4> uint4; typedef vec<float, 4> float4; typedef vec<double, 4> double4;
+    typedef mat<bool, 3, 2> bool3x2; typedef mat<int, 3, 2> int3x2; typedef mat<float, 3, 2> float3x2; typedef mat<double, 3, 2> double3x2;
     typedef mat<bool, 3, 3> bool3x3; typedef mat<int, 3, 3> int3x3; typedef mat<float, 3, 3> float3x3; typedef mat<double, 3, 3> double3x3;
     typedef mat<bool, 4, 4> bool4x4; typedef mat<int, 4, 4> int4x4; typedef mat<float, 4, 4> float4x4; typedef mat<double, 4, 4> double4x4;
 
@@ -442,9 +457,12 @@ struct pose
 struct ray { float3 origin, direction; };
 struct geometry_vertex { float3 position, normal; };
 struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<int3> triangles; };
+struct gizmo_renderable { geometry_mesh mesh; float3 color; };
 
 inline ray transform(const pose & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
 inline ray detransform(const pose & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
+
+inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
 
 bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t = 0);
 bool intersect_ray_triangle(const ray & ray, const float3 & v0, const float3 & v1, const float3 & v2, float * hit_t = 0);
@@ -463,8 +481,6 @@ struct camera_parameters
     float4 orientation;
 };
 
-//float4 get_orientation() const { return qmul(rotation_quat(float3(0, 1, 0), yaw), rotation_quat(float3(1, 0, 0), pitch)); }
-
 inline float4x4 get_view_matrix(const camera_parameters & cam) { return mul(rotation_matrix(qconj(cam.orientation)), translation_matrix(-cam.position)); }
 inline float4x4 get_projection_matrix(const rect & viewport, const camera_parameters & cam) { return perspective_matrix(cam.yfov, viewport.aspect_ratio(), cam.near_clip, cam.far_clip); }
 inline float4x4 get_viewproj_matrix(const rect & viewport, const camera_parameters & cam) { return mul(get_projection_matrix(viewport, cam), get_view_matrix(cam)); }
@@ -475,7 +491,7 @@ enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_y
 
 struct gizmo_editor
 {
-    geometry_mesh geomeshes[9];     // Meshes used for drawing gizmo elements
+    geometry_mesh geomeshes[9];             // Meshes used for drawing gizmo elements
 
     struct interaction_state
     {
@@ -484,33 +500,28 @@ struct gizmo_editor
         bool hotkey_rotate;
         bool hotkey_scale;
         bool hotkey_local;
-        float timestep;                 // Timestep between the last frame and this one
-        rect viewport;                  // Current 3D viewport used to render the scene
-        float2 cursor;                  // Current cursor location
-        camera_parameters cam;          // ... 
+        float timestep;                     // Timestep between the last frame and this one
+        rect viewport;                      // Current 3D viewport used to render the scene
+        float2 cursor;                      // Current cursor location
+        camera_parameters cam;              // ... 
     };
 
-    interaction_state active_state;
-    interaction_state last_state;
+    std::vector<gizmo_renderable> drawlist;
 
-    gizmo_mode gizmode;             // Mode that the gizmo is currently in
+    interaction_state active_state, last_state;
 
-    float3 original_position;       // Original position of an object being manipulated with a gizmo
-    float4 original_orientation;    // Original orientation of an object being manipulated with a gizmo
-    float3 click_offset;            // Offset from position of grabbed object to coordinates of clicked point
+    gizmo_mode gizmode;                     // Mode that the gizmo is currently in
 
-    void update(interaction_state & state);  // Clear geometry buffer and update interaction data
+    float3 original_position;               // Original position of an object being manipulated with a gizmo
+    float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
+    float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
 
-    void draw();                             // Draw
+    void update(interaction_state & state); // Clear geometry buffer and update interaction data
+    void draw();                            // Draw
 
-    std::function<void()> render;                           // Callback to render the gizmo meshes
+    std::function<void()> render;           // Callback to render the gizmo meshes
 
-    // API for doing computations in 3D space
-    //float4x4 get_view_matrix() const { return cam.get_view_matrix(); }
-    //float4x4 get_projection_matrix() const { return cam.get_projection_matrix(viewport3d); }
-    //float4x4 get_viewproj_matrix() const { return cam.get_viewproj_matrix(viewport3d); }
-
-    ray get_ray_from_cursor() const { return cam.get_ray_from_pixel(active_state.cursor, active_state.viewport); }
+    ray get_ray_from_cursor(const camera_parameters & cam) const { return get_ray_from_pixel(active_state.cursor, active_state.viewport, cam); }
 };
 
 ////////////////////////////

@@ -1,5 +1,17 @@
 #include "gizmo.hpp"
 
+inline bool has_clicked(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
+{
+    if (last.mouse_left == false && active.mouse_left == true) return true;
+    return false;
+}
+
+inline bool has_released(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
+{
+    if (last.mouse_left == true && active.mouse_left == false) return true;
+    return false;
+}
+
 ///////////////////////
 // Translation Gizmo //
 ///////////////////////
@@ -121,8 +133,8 @@ geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, c
     {
         const float tex_s = static_cast<float>(i) / slices, angle = (float)(i%slices) * tau / slices;
         const float3 arm = arm1 * std::cos(angle) + arm2 * std::sin(angle);
-        mesh.vertices.push_back({ arm, normalize(arm),{ tex_s,0 } });
-        mesh.vertices.push_back({ arm + axis, normalize(arm),{ tex_s,1 } });
+        mesh.vertices.push_back({ arm, normalize(arm) });
+        mesh.vertices.push_back({ arm + axis, normalize(arm) });
     }
     for (int i = 0; i<slices; ++i)
     {
@@ -198,6 +210,8 @@ void gizmo_editor::update(interaction_state & state)
 {
     active_state = state;
 
+    drawlist.clear();
+
     /*
     switch (g.in.type)
     {
@@ -220,14 +234,25 @@ void gizmo_editor::update(interaction_state & state)
     }
     */
 
-    last_state = active_state;
 }
 
+void gizmo_editor::draw()
+{
+    if (render)
+    {
+        render();
+    }
+
+    last_state = active_state;
+}
 
 void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, float3 & point)
 {
     // Mouse clicked
-    if (g.last_state.mouse_left == false && g.active_state.mouse_left == true) { g.original_position = point; }
+    if (has_clicked(g.last_state, g.active_state)) 
+    { 
+        g.original_position = point; 
+    }
 
     if (g.active_state.mouse_left)
     {
@@ -235,7 +260,7 @@ void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, fl
         const float3 plane_point = g.original_position;
 
         // Define a ray emitting from the camera underneath the cursor
-        const ray ray = g.get_ray_from_cursor();
+        const ray ray = g.get_ray_from_cursor(g.active_state.cam);
 
         // If an intersection exists between the ray and the plane, place the object at that point
         const float denom = dot(ray.direction, plane_normal);
@@ -265,10 +290,10 @@ void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & po
 void position_gizmo(gizmo_editor & g, int id, float3 & position)
 {
     // On click, set the gizmo mode based on which component the user clicked on
-    if (g.last_state.mouse_left == false && g.active_state.mouse_left == true)
+    if (has_clicked(g.last_state, g.active_state))
     {
         g.gizmode = gizmo_mode::none;
-        auto ray = g.get_ray_from_cursor();
+        auto ray = g.get_ray_from_cursor(g.active_state.cam);
         ray.origin -= position;
 
         float best_t = std::numeric_limits<float>::infinity(), t;
@@ -283,11 +308,13 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         if (g.gizmode != gizmo_mode::none)
         {
             g.click_offset = ray.origin + ray.direction*t;
-            g.g.set_pressed(id);
+            // g.g.set_pressed(id);
         }
     }
 
+    // TODO
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
+    /*
     if (g.g.is_pressed(id))
     {
         position += g.click_offset;
@@ -302,9 +329,13 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         }
         position -= g.click_offset;
     }
+    */
 
     // On release, deactivate the current gizmo mode
-    if (g.g.check_release(id)) g.gizmode = gizmo_mode::none;
+    if (has_released(g.last_state, g.active_state))
+    {
+        g.gizmode = gizmo_mode::none;
+    }
 
     // Add the gizmo to our 3D draw list
     const float3 colors[] = 
@@ -319,12 +350,20 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
 
     auto model = translation_matrix(position), modelIT = inverse(transpose(model));
 
-    for (int i = 0; i<6; ++i)
+    for (int i = 0; i < 6; ++i)
     {
-        g.draw.begin_object(g.gizmo_res.meshes[i], g.gizmo_res.program);
-        g.draw.set_uniform("u_model", model);
-        g.draw.set_uniform("u_modelIT", modelIT);
-        g.draw.set_uniform("u_diffuseMtl", colors[i]);
+        gizmo_renderable r;
+
+        r.mesh = g.geomeshes[i];
+        r.color = colors[i];
+
+        // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices)
+        {
+            v.position = transform_coord(model, v.position);
+        }
+
+        g.drawlist.push_back(r);
     }
 }
 
@@ -335,7 +374,7 @@ void axis_rotation_dragger(gizmo_editor & g, const float3 & axis, const float3 &
         pose original_pose = { g.original_orientation, g.original_position };
         float3 the_axis = original_pose.transform_vector(axis);
         float4 the_plane = { the_axis, -dot(the_axis, g.click_offset) };
-        const ray r = g.get_ray_from_cursor();
+        const ray r = g.get_ray_from_cursor(g.active_state.cam);
 
         float t;
         if (intersect_ray_plane(r, the_plane, &t))
@@ -361,10 +400,10 @@ void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 &
     auto p = pose(orientation, center);
 
     // On click, set the gizmo mode based on which component the user clicked on
-    if (g.last_state.mouse_left == false && g.active_state.mouse_left == true)
+    if (has_clicked(g.last_state, g.active_state))
     {
         g.gizmode = gizmo_mode::none;
-        auto ray = detransform(p, g.get_ray_from_cursor());
+        auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         float best_t = std::numeric_limits<float>::infinity(), t;
 
         if (intersect_ray_mesh(ray, g.geomeshes[6], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_yz; best_t = t; }
@@ -376,10 +415,12 @@ void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 &
             g.original_position = center;
             g.original_orientation = orientation;
             g.click_offset = p.transform_point(ray.origin + ray.direction*t);
-            g.g.set_pressed(id);
+           // g.g.set_pressed(id);
         }
     }
 
+    // TODO
+    /*
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
     if (g.g.is_pressed(id))
     {
@@ -390,9 +431,13 @@ void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 &
         case gizmo_mode::rotate_xy: axis_rotation_dragger(g, { 0,0,1 }, center, orientation); break;
         }
     }
+    */
 
     // On release, deactivate the current gizmo mode
-    if (g.g.check_release(id)) g.gizmode = gizmo_mode::none;
+    if (has_released(g.last_state, g.active_state))
+    {
+        g.gizmode = gizmo_mode::none;
+    }
 
     // Add the gizmo to our 3D draw list
     const float3 colors[] = {
@@ -402,11 +447,20 @@ void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 &
     };
 
     const auto model = p.matrix();
-    for (int i = 6; i<9; ++i)
+
+    for (int i = 6; i < 9; ++i)
     {
-        g.draw.begin_object(g.gizmo_res.meshes[i], g.gizmo_res.program);
-        g.draw.set_uniform("u_model", model);
-        g.draw.set_uniform("u_modelIT", model); // No scaling, no need to inverse-transpose
-        g.draw.set_uniform("u_diffuseMtl", colors[i - 6]);
+        gizmo_renderable r;
+
+        r.mesh = g.geomeshes[i];
+        r.color = colors[i - 6];
+
+        // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices)
+        {
+            v.position = transform_coord(model, v.position);
+        }
+
+        g.drawlist.push_back(r);
     }
 }
