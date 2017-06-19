@@ -533,6 +533,9 @@ struct gizmo_context
         bool hotkey_rotate;
         bool hotkey_scale;
         bool hotkey_local;
+        float snap_translation;             // ...
+        float snap_rotation;                // ...
+        float snap_scale;                   // ...
         float timestep;                     // Timestep between the last frame and this one (unused)
         rect viewport;                      // Current 3d viewport used to render the scene
         float2 cursor;                      // Current cursor location in window coordinates
@@ -548,6 +551,7 @@ struct gizmo_context
     float3 original_position;               // Original position of an object being manipulated with a gizmo
     float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
     float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
+    bool local_toggle;                      // ... 
 
     void update(interaction_state & state); // Clear geometry buffer and update interaction data
     void draw();                            // Draw

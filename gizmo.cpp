@@ -215,6 +215,7 @@ gizmo_context::gizmo_context()
 void gizmo_context::update(interaction_state & state)
 {
     active_state = state;
+    local_toggle = (last_state.hotkey_local == false && active_state.hotkey_local == true) ? !local_toggle : local_toggle;
     drawlist.clear();
 }
 
