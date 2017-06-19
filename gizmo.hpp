@@ -520,9 +520,9 @@ ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera
 
 enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, translate_xyz, rotate_yz, rotate_zx, rotate_xy };
 
-struct gizmo_editor
+struct gizmo_context
 {
-    gizmo_editor();
+    gizmo_context();
 
     geometry_mesh geomeshes[10];             // Meshes used for drawing gizmo elements
 
@@ -563,9 +563,8 @@ struct gizmo_editor
 //   Gizmo Definitions    //
 ////////////////////////////
 
-void position_gizmo(const std::string & name, gizmo_editor & g, float3 & position);
-void orientation_gizmo(const std::string & name, gizmo_editor & g, const float3 & center, float4 & orientation);
-
+void position_gizmo(const std::string & name, gizmo_context & g, float3 & position);
+void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation);
 // todo - scale_gizmo
 
 #endif // end gizmin_hpp

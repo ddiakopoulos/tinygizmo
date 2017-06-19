@@ -7,13 +7,13 @@
 // Utilities //
 ///////////////
 
-inline bool has_clicked(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
+inline bool has_clicked(const gizmo_context::interaction_state & last, const gizmo_context::interaction_state & active)
 {
     if (last.mouse_left == false && active.mouse_left == true) return true;
     return false;
 }
 
-inline bool has_released(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
+inline bool has_released(const gizmo_context::interaction_state & last, const gizmo_context::interaction_state & active)
 {
     if (last.mouse_left == true && active.mouse_left == false) return true;
     return false;
@@ -192,11 +192,11 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
     return mesh;
 }
 
-//////////////////
-// Gizmo Editor //
-//////////////////
+//////////////////////////////////
+// Gizmo Context Implementation //
+//////////////////////////////////
 
-gizmo_editor::gizmo_editor()
+gizmo_context::gizmo_context()
 {
     std::initializer_list<float2> arrow_points = { { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::initializer_list<float2> ring_points = { { +0.05f, 1 },{ -0.05f, 1 },{ -0.05f, 1 },{ -0.05f, 1.2f },{ -0.05f, 1.2f },{ +0.05f, 1.2f },{ +0.05f, 1.2f },{ +0.05f, 1 } };
@@ -212,13 +212,13 @@ gizmo_editor::gizmo_editor()
     geomeshes[9] = make_box_geometry({ -0.05f,-0.05f,-0.05f }, { 0.05f,0.05f,0.05f });
 }
 
-void gizmo_editor::update(interaction_state & state)
+void gizmo_context::update(interaction_state & state)
 {
     active_state = state;
     drawlist.clear();
 }
 
-void gizmo_editor::draw()
+void gizmo_context::draw()
 {
     if (render)
     {
@@ -239,7 +239,7 @@ void gizmo_editor::draw()
 // Private Gizmo Implementations //
 ///////////////////////////////////
 
-void axis_rotation_dragger(gizmo_editor & g, const float3 & axis, const float3 & center, float4 & orientation)
+void axis_rotation_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float4 & orientation)
 {
     if (g.active_state.mouse_left)
     {
@@ -267,7 +267,7 @@ void axis_rotation_dragger(gizmo_editor & g, const float3 & axis, const float3 &
     }
 }
 
-void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, float3 & point)
+void plane_translation_dragger(gizmo_context & g, const float3 & plane_normal, float3 & point)
 {
     // Mouse clicked
     if (has_clicked(g.last_state, g.active_state)) 
@@ -294,7 +294,7 @@ void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, fl
     }
 }
 
-void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & point)
+void axis_translation_dragger(gizmo_context & g, const float3 & axis, float3 & point)
 {
     if (g.active_state.mouse_left)
     {
@@ -312,7 +312,7 @@ void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & po
 // Public "Immediate-Mode" Gizmo Implementations //
 ///////////////////////////////////////////////////
 
-void position_gizmo(const std::string & name, gizmo_editor & g, float3 & position)
+void position_gizmo(const std::string & name, gizmo_context & g, float3 & position)
 {
     auto h = hash_fnv1a(name);
 
@@ -366,8 +366,7 @@ void position_gizmo(const std::string & name, gizmo_editor & g, float3 & positio
     }
 
     // Add the gizmo to our 3D draw list
-    std::map<int, float3> colors
-    {
+    std::map<int, float3> colors {
         {0, g.gizmode == gizmo_mode::translate_x ? float3(1,0.5f,0.5f) : float3(1,0,0)},
         {1, g.gizmode == gizmo_mode::translate_y ? float3(0.5f,1,0.5f) : float3(0,1,0)},
         {2, g.gizmode == gizmo_mode::translate_z ? float3(0.5f,0.5f,1) : float3(0,0,1)},
@@ -389,7 +388,7 @@ void position_gizmo(const std::string & name, gizmo_editor & g, float3 & positio
     }
 }
 
-void orientation_gizmo(const std::string & name, gizmo_editor & g, const float3 & center, float4 & orientation)
+void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
     auto p = pose(orientation, center);
 
