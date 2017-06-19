@@ -354,8 +354,8 @@ namespace minalg
     template<class T, int M, int N> const vec<T, M> * end(const mat<T, M, N> & a) { return begin(a) + N; }
 
     // Factory functions for 3D spatial transformations
-    enum fwd_axis { neg_z, pos_z };					// Should projection matrices be generated assuming forward is {0,0,-1} or {0,0,1}
-    enum z_range { neg_one_to_one, zero_to_one };	// Should projection matrices map z into the range of [-1,1] or [0,1]?
+    enum fwd_axis { neg_z, pos_z };                 // Should projection matrices be generated assuming forward is {0,0,-1} or {0,0,1}
+    enum z_range { neg_one_to_one, zero_to_one };   // Should projection matrices map z into the range of [-1,1] or [0,1]?
     template<class T> vec<T, 4>   rotation_quat(const vec<T, 3> & axis, T angle) { return{ axis*std::sin(angle / 2), std::cos(angle / 2) }; }
     template<class T> vec<T, 4>   rotation_quat(const mat<T, 3, 3> & m) { return copysign(sqrt(max(T(0), T(1) + vec<T, 4>(m.x.x - m.y.y - m.z.z, m.y.y - m.x.x - m.z.z, m.z.z - m.x.x - m.y.y, m.x.x + m.y.y + m.z.z))) / T(2), vec<T, 4>(m.y.z - m.z.y, m.z.x - m.x.z, m.x.y - m.y.x, 1)); }
     template<class T> mat<T, 4, 4> translation_matrix(const vec<T, 3> & translation) { return{ { 1,0,0,0 },{ 0,1,0,0 },{ 0,0,1,0 },{ translation,1 } }; }
