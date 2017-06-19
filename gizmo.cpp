@@ -1,5 +1,11 @@
+// This is free and unencumbered software released into the public domain.
+// For more information, please refer to <http://unlicense.org>
+
 #include "gizmo.hpp"
-#include <map>
+
+///////////////
+// Utilities //
+///////////////
 
 inline bool has_clicked(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
 {
@@ -13,9 +19,9 @@ inline bool has_released(const gizmo_editor::interaction_state & last, const giz
     return false;
 }
 
-///////////////////////
-// Translation Gizmo //
-///////////////////////
+/////////////////////////////////////////
+// Ray-Geometry Intersection Functions //
+/////////////////////////////////////////
 
 bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t)
 {
@@ -65,13 +71,25 @@ bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit
     return true;
 }
 
-///////////////////////
-// Translation Gizmo //
-///////////////////////
+/////////////////////////////
+// Camera Helper Functions //
+/////////////////////////////
 
 float4x4 get_view_matrix(const camera_parameters & cam) { return mul(rotation_matrix(qconj(cam.orientation)), translation_matrix(-cam.position)); }
 float4x4 get_projection_matrix(const rect & viewport, const camera_parameters & cam) { return perspective_matrix(cam.yfov, viewport.aspect_ratio(), cam.near_clip, cam.far_clip); }
 float4x4 get_viewproj_matrix(const rect & viewport, const camera_parameters & cam) { return mul(get_projection_matrix(viewport, cam), get_view_matrix(cam)); }
+
+ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam)
+{
+    const float x = 2 * (pixel.x - viewport.x0) / viewport.width() - 1, y = 1 - 2 * (pixel.y - viewport.y0) / viewport.height();
+    const float4x4 inv_view_proj = inverse(get_viewproj_matrix(viewport, cam));
+    const float4 p0 = mul(inv_view_proj, float4(x, y, -1, 1)), p1 = mul(inv_view_proj, float4(x, y, +1, 1));
+    return{ cam.position, p1.xyz()*p0.w - p0.xyz()*p1.w };
+}
+
+///////////////////////////////
+// Geometry + Mesh Utilities //
+///////////////////////////////
 
 void compute_normals(geometry_mesh & mesh)
 {
@@ -88,45 +106,27 @@ void compute_normals(geometry_mesh & mesh)
     }
 }
 
-ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam)
-{
-    const float x = 2 * (pixel.x - viewport.x0) / viewport.width() - 1, y = 1 - 2 * (pixel.y - viewport.y0) / viewport.height();
-    const float4x4 inv_view_proj = inverse(get_viewproj_matrix(viewport, cam));
-    const float4 p0 = mul(inv_view_proj, float4(x, y, -1, 1)), p1 = mul(inv_view_proj, float4(x, y, +1, 1));
-    return{ cam.position, p1.xyz()*p0.w - p0.xyz()*p1.w };
-}
-
 geometry_mesh make_box_geometry(const float3 & min_bounds, const float3 & max_bounds)
 {
     const auto a = min_bounds, b = max_bounds;
     geometry_mesh mesh;
     mesh.vertices = {
-        { { a.x, a.y, a.z },{ -1,0,0 } },
-        { { a.x, a.y, b.z },{ -1,0,0 } },
-        { { a.x, b.y, b.z },{ -1,0,0 } },
-        { { a.x, b.y, a.z },{ -1,0,0 } },
-        { { b.x, a.y, a.z },{ +1,0,0 } },
-        { { b.x, b.y, a.z },{ +1,0,0 } },
-        { { b.x, b.y, b.z },{ +1,0,0 } },
-        { { b.x, a.y, b.z },{ +1,0,0 } },
-        { { a.x, a.y, a.z },{ 0,-1,0 } },
-        { { b.x, a.y, a.z },{ 0,-1,0 } },
-        { { b.x, a.y, b.z },{ 0,-1,0 } },
-        { { a.x, a.y, b.z },{ 0,-1,0 } },
-        { { a.x, b.y, a.z },{ 0,+1,0 } },
-        { { a.x, b.y, b.z },{ 0,+1,0 } },
-        { { b.x, b.y, b.z },{ 0,+1,0 } },
-        { { b.x, b.y, a.z },{ 0,+1,0 } },
-        { { a.x, a.y, a.z },{ 0,0,-1 } },
-        { { a.x, b.y, a.z },{ 0,0,-1 } },
-        { { b.x, b.y, a.z },{ 0,0,-1 } },
-        { { b.x, a.y, a.z },{ 0,0,-1 } },
-        { { a.x, a.y, b.z },{ 0,0,+1 } },
-        { { b.x, a.y, b.z },{ 0,0,+1 } },
-        { { b.x, b.y, b.z },{ 0,0,+1 } },
-        { { a.x, b.y, b.z },{ 0,0,+1 } },
+        { { a.x, a.y, a.z },{ -1,0,0 } }, { { a.x, a.y, b.z },{ -1,0,0 } },
+        { { a.x, b.y, b.z },{ -1,0,0 } }, { { a.x, b.y, a.z },{ -1,0,0 } },
+        { { b.x, a.y, a.z },{ +1,0,0 } }, { { b.x, b.y, a.z },{ +1,0,0 } },
+        { { b.x, b.y, b.z },{ +1,0,0 } }, { { b.x, a.y, b.z },{ +1,0,0 } },
+        { { a.x, a.y, a.z },{ 0,-1,0 } }, { { b.x, a.y, a.z },{ 0,-1,0 } },
+        { { b.x, a.y, b.z },{ 0,-1,0 } }, { { a.x, a.y, b.z },{ 0,-1,0 } },
+        { { a.x, b.y, a.z },{ 0,+1,0 } }, { { a.x, b.y, b.z },{ 0,+1,0 } },
+        { { b.x, b.y, b.z },{ 0,+1,0 } }, { { b.x, b.y, a.z },{ 0,+1,0 } },
+        { { a.x, a.y, a.z },{ 0,0,-1 } }, { { a.x, b.y, a.z },{ 0,0,-1 } },
+        { { b.x, b.y, a.z },{ 0,0,-1 } }, { { b.x, a.y, a.z },{ 0,0,-1 } },
+        { { a.x, a.y, b.z },{ 0,0,+1 } }, { { b.x, a.y, b.z },{ 0,0,+1 } },
+        { { b.x, b.y, b.z },{ 0,0,+1 } }, { { a.x, b.y, b.z },{ 0,0,+1 } },
     };
-    mesh.triangles = { { 0,1,2 },{ 0,2,3 },{ 4,5,6 },{ 4,6,7 },{ 8,9,10 },{ 8,10,11 },{ 12,13,14 },{ 12,14,15 },{ 16,17,18 },{ 16,18,19 },{ 20,21,22 },{ 20,22,23 } };
+    mesh.triangles = { { 0,1,2 },{ 0,2,3 },{ 4,5,6 },{ 4,6,7 },{ 8,9,10 },
+                       { 8,10,11 },{ 12,13,14 },{ 12,14,15 },{ 16,17,18 },
+                       { 16,18,19 },{ 20,21,22 },{ 20,22,23 } };
     return mesh;
 }
 
@@ -162,7 +162,6 @@ geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, c
         mesh.triangles.push_back({ base, base + i * 2 - 2, base + i * 2 });
         mesh.triangles.push_back({ base + 1, base + i * 2 + 1, base + i * 2 - 1 });
     }
-
     return mesh;
 }
 
@@ -193,9 +192,9 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
     return mesh;
 }
 
-///////////////////////
-// Translation Gizmo //
-///////////////////////
+//////////////////
+// Gizmo Editor //
+//////////////////
 
 gizmo_editor::gizmo_editor()
 {
@@ -234,6 +233,38 @@ void gizmo_editor::draw()
         render(r);
     }
     last_state = active_state;
+}
+
+///////////////////////////////////
+// Private Gizmo Implementations //
+///////////////////////////////////
+
+void axis_rotation_dragger(gizmo_editor & g, const float3 & axis, const float3 & center, float4 & orientation)
+{
+    if (g.active_state.mouse_left)
+    {
+        pose original_pose = { g.original_orientation, g.original_position };
+        float3 the_axis = original_pose.transform_vector(axis);
+        float4 the_plane = { the_axis, -dot(the_axis, g.click_offset) };
+        const ray r = g.get_ray_from_cursor(g.active_state.cam);
+
+        float t;
+        if (intersect_ray_plane(r, the_plane, &t))
+        {
+            float3 center_of_rotation = g.original_position + the_axis * dot(the_axis, g.click_offset - g.original_position);
+            float3 arm1 = normalize(g.click_offset - center_of_rotation);
+            float3 arm2 = normalize(r.origin + r.direction * t - center_of_rotation);
+
+            float d = dot(arm1, arm2);
+            if (d > 0.999f) { orientation = g.original_orientation; return; }
+
+            float angle = std::acos(d);
+            if (angle < 0.001f) { orientation = g.original_orientation; return; }
+
+            auto a = normalize(cross(arm1, arm2));
+            orientation = qmul(rotation_quat(a, angle), g.original_orientation);
+        }
+    }
 }
 
 void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, float3 & point)
@@ -277,7 +308,10 @@ void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & po
     }
 }
 
-//static bool isActive = false;
+///////////////////////////////////////////////////
+// Public "Immediate-Mode" Gizmo Implementations //
+///////////////////////////////////////////////////
+
 void position_gizmo(const std::string & name, gizmo_editor & g, float3 & position)
 {
     auto h = hash_fnv1a(name);
@@ -352,34 +386,6 @@ void position_gizmo(const std::string & name, gizmo_editor & g, float3 & positio
         r.color = colors[meshIdx];
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
-    }
-}
-
-void axis_rotation_dragger(gizmo_editor & g, const float3 & axis, const float3 & center, float4 & orientation)
-{
-    if (g.active_state.mouse_left)
-    {
-        pose original_pose = { g.original_orientation, g.original_position };
-        float3 the_axis = original_pose.transform_vector(axis);
-        float4 the_plane = { the_axis, -dot(the_axis, g.click_offset) };
-        const ray r = g.get_ray_from_cursor(g.active_state.cam);
-
-        float t;
-        if (intersect_ray_plane(r, the_plane, &t))
-        {
-            float3 center_of_rotation = g.original_position + the_axis * dot(the_axis, g.click_offset - g.original_position);
-            float3 arm1 = normalize(g.click_offset - center_of_rotation);
-            float3 arm2 = normalize(r.origin + r.direction * t - center_of_rotation);
-
-            float d = dot(arm1, arm2);
-            if (d > 0.999f) { orientation = g.original_orientation; return; }
-
-            float angle = std::acos(d);
-            if (angle < 0.001f) { orientation = g.original_orientation; return; }
-
-            auto a = normalize(cross(arm1, arm2));
-            orientation = qmul(rotation_quat(a, angle), g.original_orientation);
-        }
     }
 }
 

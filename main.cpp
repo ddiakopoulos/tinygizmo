@@ -58,6 +58,8 @@ void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
     gpu->set_elements(tris, GL_DYNAMIC_DRAW);
 }
 
+const linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
+
 std::unique_ptr<Window> win;
 std::unique_ptr<GlShader> wireframeShader;
 std::unique_ptr<GlMesh> gizmoEditorMesh;
@@ -84,9 +86,6 @@ int main(int argc, char * argv[])
 
     linalg::aliases::int2 windowSize = win->get_window_size();
     wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
-
-    linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
-    //linalg::aliases::float4x4 fakeViewProj = identity4x4;
 
     gizmoEditorMesh.reset(new GlMesh());
 
@@ -184,7 +183,7 @@ int main(int argc, char * argv[])
             if (bl) move -= qxdir(orientation);
             if (bb) move += qzdir(orientation);
             if (br) move += qxdir(orientation);
-            if (length2(move) > 0) cam.position += normalize(move) * (timestep * 8);
+            if (length2(move) > 0) cam.position += normalize(move) * (timestep * 10);
         }
 
         glViewport(0, 0, windowSize.x, windowSize.y);
