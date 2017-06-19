@@ -471,6 +471,25 @@ struct pose
     float3 detransform_vector(const float3 & v) const { return qrot(qconj(orientation), v); }
 };
 
+inline static float3 snap(const float3 & value, const float snap) 
+{
+    if (snap > 0.0f) return float3(floor(value / snap) * snap);
+    return value;
+}
+
+inline float4 make_rotation_quat_axis_angle(const float3 & axis, float angle)
+{
+    return { axis * std::sin(angle / 2), std::cos(angle / 2) };
+}
+
+inline float4 make_rotation_quat_between_vectors_snapped(const float3 & from, const float3 & to, const float angle)
+{
+    auto a = normalize(from);
+    auto b = normalize(to);
+    auto snappedAcos = std::floor(std::acos(dot(a, b)) / angle) * angle;
+    return make_rotation_quat_axis_angle(normalize(cross(a, b)), snappedAcos);
+}
+
 struct ray { float3 origin, direction; };
 struct geometry_vertex { float3 position, normal, color; };
 struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
