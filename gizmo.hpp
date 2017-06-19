@@ -497,10 +497,10 @@ struct gizmo_editor
         bool hotkey_rotate;
         bool hotkey_scale;
         bool hotkey_local;
-        float timestep;                     // Timestep between the last frame and this one
-        rect viewport;                      // Current 3D viewport used to render the scene
-        float2 cursor;                      // Current cursor location
-        camera_parameters cam;              // ... 
+        float timestep;                     // Timestep between the last frame and this one (unused)
+        rect viewport;                      // Current 3d viewport used to render the scene
+        float2 cursor;                      // Current cursor location in window coordinates
+        camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
     };
 
     std::vector<gizmo_renderable> drawlist;

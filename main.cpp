@@ -126,6 +126,8 @@ int main(int argc, char * argv[])
         if (win->on_input) win->on_input(e);
     };
 
+    minalg::float2 lastCursor;
+
     win->on_input = [&](const InputEvent & event)
     {
         if (event.type == InputEvent::KEY)
@@ -152,11 +154,14 @@ int main(int argc, char * argv[])
         {
             gis.cursor = minalg::float2(event.cursor.x, event.cursor.y);
 
+            auto deltaCursorMotion = gis.cursor - lastCursor;
             if (mr)
             {
-                //cam.yaw -= e.motion.x * 0.01f;
-                //cam.pitch -= e.motion.y * 0.01f;
+                cam.yaw -= deltaCursorMotion.x * 0.01f;
+                cam.pitch -= deltaCursorMotion.y * 0.01f;
             }
+
+            lastCursor = minalg::float2(event.cursor.x, event.cursor.y);
         }
     };
 
@@ -206,6 +211,7 @@ int main(int argc, char * argv[])
         position_gizmo(gizmoEditor, 0, gp);
         gizmoEditor.draw();
 
+        std::cout << "Position: " << gp << std::endl;
         gl_check_error(__FILE__, __LINE__);
 
         win->swap_buffers();

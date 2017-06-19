@@ -1,4 +1,5 @@
 #include "gizmo.hpp"
+#include <map>
 
 inline bool has_clicked(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
 {
@@ -209,7 +210,7 @@ gizmo_editor::gizmo_editor()
     geomeshes[6] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 24, ring_points);
     geomeshes[7] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 24, ring_points);
     geomeshes[8] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 24, ring_points);
-    geomeshes[9] = make_box_geometry({ -0.01f,-0.01f,-0.01f }, { 0.01f,0.01f,0.01f });
+    geomeshes[9] = make_box_geometry({ -0.05f,-0.05f,-0.05f }, { 0.05f,0.05f,0.05f });
 }
 
 void gizmo_editor::update(interaction_state & state)
@@ -294,6 +295,7 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         if (intersect_ray_mesh(ray, g.geomeshes[3], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_yz; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[4], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_zx; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[5], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xy; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[9], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xyz; best_t = t; }
 
         if (g.gizmode != gizmo_mode::none)
         {
@@ -302,7 +304,6 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         }
     }
 
-    // TODO
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
     if (isActive)
     {
@@ -315,7 +316,7 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
             case gizmo_mode::translate_yz: plane_translation_dragger(g, { 1,0,0 }, position); break;
             case gizmo_mode::translate_zx: plane_translation_dragger(g, { 0,1,0 }, position); break;
             case gizmo_mode::translate_xy: plane_translation_dragger(g, { 0,0,1 }, position); break;
-            case gizmo_mode::translate_xyz: plane_translation_dragger(g, { 0,0,0 }, position); break;
+            case gizmo_mode::translate_xyz: plane_translation_dragger(g, -minalg::qzdir(g.active_state.cam.orientation), position); break;
         }
         position -= g.click_offset;
     }
@@ -327,23 +328,24 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
     }
 
     // Add the gizmo to our 3D draw list
-    const float3 colors[] = 
+    std::map<int, float3> colors
     {
-        g.gizmode == gizmo_mode::translate_x ? float3(1,0.5f,0.5f) : float3(1,0,0),
-        g.gizmode == gizmo_mode::translate_y ? float3(0.5f,1,0.5f) : float3(0,1,0),
-        g.gizmode == gizmo_mode::translate_z ? float3(0.5f,0.5f,1) : float3(0,0,1),
-        g.gizmode == gizmo_mode::translate_yz ? float3(0.5f,1,1) : float3(0,1,1),
-        g.gizmode == gizmo_mode::translate_zx ? float3(1,0.5f,1) : float3(1,0,1),
-        g.gizmode == gizmo_mode::translate_xy ? float3(1,1,0.5f) : float3(1,1,0),
+        {0, g.gizmode == gizmo_mode::translate_x ? float3(1,0.5f,0.5f) : float3(1,0,0)},
+        {1, g.gizmode == gizmo_mode::translate_y ? float3(0.5f,1,0.5f) : float3(0,1,0)},
+        {2, g.gizmode == gizmo_mode::translate_z ? float3(0.5f,0.5f,1) : float3(0,0,1)},
+        {3, g.gizmode == gizmo_mode::translate_yz ? float3(0.5f,1,1) : float3(0,1,1)},
+        {4, g.gizmode == gizmo_mode::translate_zx ? float3(1,0.5f,1) : float3(1,0,1)},
+        {5, g.gizmode == gizmo_mode::translate_xy ? float3(1,1,0.5f) : float3(1,1,0)},
+        {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f) : float3(1.f)},
     };
 
     auto model = translation_matrix(position);
 
-    for (int i = 0; i < 6; ++i)
+    for (auto meshIdx : { 0, 1, 2, 3, 4, 5, 9 })
     {
         gizmo_renderable r;
-        r.mesh = g.geomeshes[i];
-        r.color = colors[i];
+        r.mesh = g.geomeshes[meshIdx];
+        r.color = colors[meshIdx];
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
