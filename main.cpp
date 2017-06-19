@@ -208,13 +208,13 @@ int main(int argc, char * argv[])
         gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
         gizmoEditor.update(gis);
-        position_gizmo(gizmoEditor, 0, gp);
+        position_gizmo("position-gizmo", gizmoEditor, gp);
         gizmoEditor.draw();
 
         std::cout << "Position: " << gp << std::endl;
 
-        std::cout << hash_fnv1a("hello world!") << std::endl;
-        std::cout << hash_fnv1a("hello world") << std::endl;
+        for (auto v : gizmoEditor.active) std::cout << v.second << std::endl;
+
         gl_check_error(__FILE__, __LINE__);
 
         win->swap_buffers();

@@ -15,6 +15,7 @@
 #include <vector>
 #include <iostream>
 #include <functional>
+#include <map>
 
 // todo
 // [ ] snapping (linear + angular)
@@ -427,9 +428,9 @@ using namespace minalg;
 //   Utility Math    //
 ///////////////////////
 
-const float tau = 6.2831853f;
+const float tau = 6.28318530718f;
 
-// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+// 32 bit Fowler–Noll–Vo Hash
 inline uint32_t hash_fnv1a(const std::string & str)
 {
     static const uint32_t fnv1aBase32 = 0x811C9DC5u;
@@ -535,6 +536,8 @@ struct gizmo_editor
     std::function<void(const geometry_mesh & r)> render;           // Callback to render the gizmo meshes
 
     ray get_ray_from_cursor(const camera_parameters & cam) const { return get_ray_from_pixel(active_state.cursor, active_state.viewport, cam); }
+
+    std::map<uint32_t, bool> active;
 };
 
 ////////////////////////////
@@ -543,8 +546,9 @@ struct gizmo_editor
 
 void plane_translation_dragger(gizmo_editor & g, const float3 & plane_normal, float3 & point);
 void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & point);
-void position_gizmo(gizmo_editor & g, int id, float3 & position);
-void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 & orientation);
+
+void position_gizmo(const std::string & name, gizmo_editor & g, float3 & position);
+void orientation_gizmo(const std::string & name, gizmo_editor & g, const float3 & center, float4 & orientation);
 // scale_gizmo
 
 #endif

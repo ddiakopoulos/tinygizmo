@@ -277,9 +277,11 @@ void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & po
     }
 }
 
-static bool isActive = false;
-void position_gizmo(gizmo_editor & g, int id, float3 & position)
+//static bool isActive = false;
+void position_gizmo(const std::string & name, gizmo_editor & g, float3 & position)
 {
+    auto h = hash_fnv1a(name);
+
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))
     {
@@ -297,15 +299,17 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         if (intersect_ray_mesh(ray, g.geomeshes[5], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xy; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[9], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xyz; best_t = t; }
 
+
         if (g.gizmode != gizmo_mode::none)
         {
             g.click_offset = ray.origin + ray.direction*t;
-            isActive = true;
+            g.active[h] = true;
         }
+        else g.active[h] = false;
     }
 
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
-    if (isActive)
+    if (g.active[h])
     {
         position += g.click_offset;
         switch (g.gizmode)
@@ -379,7 +383,7 @@ void axis_rotation_dragger(gizmo_editor & g, const float3 & axis, const float3 &
     }
 }
 
-void orientation_gizmo(gizmo_editor & g, int id, const float3 & center, float4 & orientation)
+void orientation_gizmo(const std::string & name, gizmo_editor & g, const float3 & center, float4 & orientation)
 {
     auto p = pose(orientation, center);
 
