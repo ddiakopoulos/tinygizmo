@@ -51,11 +51,11 @@ void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
 {
     const std::vector<linalg::aliases::float3> & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
     const std::vector<linalg::aliases::uint3> & tris = reinterpret_cast<const std::vector<linalg::aliases::uint3> &>(cpu.triangles);
-    gpu->set_vertices(verts, GL_STREAM_DRAW);
-    gpu->set_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, position));
-    gpu->set_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, normal));
-    gpu->set_attribute(2, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*)offsetof(geometry_vertex, color));
-    gpu->set_elements(tris, GL_STREAM_DRAW);
+    gpu->set_vertices(verts, GL_DYNAMIC_DRAW);
+    gpu->set_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, position));
+    gpu->set_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, normal));
+    gpu->set_attribute(2, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, color));
+    gpu->set_elements(tris, GL_DYNAMIC_DRAW);
 }
 
 std::unique_ptr<Window> win;
@@ -75,6 +75,7 @@ int main(int argc, char * argv[])
     try
     {
         win.reset(new Window(1280, 800, "gizmin-example"));
+        glfwSwapInterval(1);
     }
     catch (const std::exception & e)
     {
@@ -83,7 +84,6 @@ int main(int argc, char * argv[])
 
     linalg::aliases::int2 windowSize = win->get_window_size();
     wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
-
 
     linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
     //linalg::aliases::float4x4 fakeViewProj = identity4x4;
@@ -188,13 +188,12 @@ int main(int argc, char * argv[])
         glEnable(GL_DEPTH_TEST);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        
-        // gizmo input interaction state populated from win->on_input(...) callback above
-        // now populate other app parameters: 
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  
 
         linalg::aliases::float4 cameraOrientation = cam.get_orientation();
 
+        // Gizmo input interaction state populated via win->on_input(...) callback above.
+        // Now populate other app parameters: 
         gis.viewport = rect{0, 0, windowSize.x, windowSize.y};
         gis.timestep = timestep;
         gis.cam.near_clip = cam.near_clip;
@@ -204,13 +203,7 @@ int main(int argc, char * argv[])
         gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
         gizmoEditor.update(gis);
-        
         position_gizmo(gizmoEditor, 0, gp);
-
-        //glPushMatrix();
-        //glOrtho(0, windowSize.x, windowSize.y, 0, -1, +1);
-        //glPopMatrix();
-
         gizmoEditor.draw();
 
         gl_check_error(__FILE__, __LINE__);

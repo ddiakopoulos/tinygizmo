@@ -4,15 +4,25 @@
     <Filter Include="gizmo">
       <UniqueIdentifier>{886b3b0e-2a37-489f-b0cf-7ab0efe1bdb1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="extra">
+      <UniqueIdentifier>{0bceb5fb-0b9d-4b04-842b-5da21648b39d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gizmo.cpp">
       <Filter>gizmo</Filter>
     </ClCompile>
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gizmo.hpp">
       <Filter>gizmo</Filter>
+    </ClInclude>
+    <ClInclude Include="util.hpp">
+      <Filter>extra</Filter>
+    </ClInclude>
+    <ClInclude Include="gl-api.hpp">
+      <Filter>extra</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -12,12 +12,6 @@ inline bool has_released(const gizmo_editor::interaction_state & last, const giz
     return false;
 }
 
-inline bool is_dragging(const gizmo_editor::interaction_state & last, const gizmo_editor::interaction_state & active)
-{
-    if (last.mouse_left == true && active.mouse_left == true) return true;
-    return false;
-}
-
 ///////////////////////
 // Translation Gizmo //
 ///////////////////////
@@ -204,17 +198,18 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
 
 gizmo_editor::gizmo_editor()
 {
-    std::initializer_list<float2> arrow_points = { { 0, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
+    std::initializer_list<float2> arrow_points = { { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::initializer_list<float2> ring_points = { { +0.05f, 1 },{ -0.05f, 1 },{ -0.05f, 1 },{ -0.05f, 1.2f },{ -0.05f, 1.2f },{ +0.05f, 1.2f },{ +0.05f, 1.2f },{ +0.05f, 1 } };
-    geomeshes[0] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 12, arrow_points);
-    geomeshes[1] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 12, arrow_points);
-    geomeshes[2] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 12, arrow_points);
-    geomeshes[3] = make_box_geometry({ -0.01f,0,0 }, { 0.01f,0.4f,0.4f });
-    geomeshes[4] = make_box_geometry({ 0,-0.01f,0 }, { 0.4f,0.01f,0.4f });
-    geomeshes[5] = make_box_geometry({ 0,0,-0.01f }, { 0.4f,0.4f,0.01f });
+    geomeshes[0] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 16, arrow_points);
+    geomeshes[1] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 16, arrow_points);
+    geomeshes[2] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 16, arrow_points);
+    geomeshes[3] = make_box_geometry({ -0.01f,0.25,0.25 }, { 0.01f,0.75f,0.75f });
+    geomeshes[4] = make_box_geometry({ 0.25,-0.01f,0.25 }, { 0.75f,0.01f,0.75f });
+    geomeshes[5] = make_box_geometry({ 0.25,0.25,-0.01f }, { 0.75f,0.75f,0.01f });
     geomeshes[6] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 24, ring_points);
     geomeshes[7] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 24, ring_points);
     geomeshes[8] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 24, ring_points);
+    geomeshes[9] = make_box_geometry({ -0.01f,-0.01f,-0.01f }, { 0.01f,0.01f,0.01f });
 }
 
 void gizmo_editor::update(interaction_state & state)
@@ -281,6 +276,7 @@ void axis_translation_dragger(gizmo_editor & g, const float3 & axis, float3 & po
     }
 }
 
+static bool isActive = false;
 void position_gizmo(gizmo_editor & g, int id, float3 & position)
 {
     // On click, set the gizmo mode based on which component the user clicked on
@@ -302,13 +298,13 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
         if (g.gizmode != gizmo_mode::none)
         {
             g.click_offset = ray.origin + ray.direction*t;
-            // g.g.set_pressed(id);
+            isActive = true;
         }
     }
 
     // TODO
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
-    if (is_dragging(g.last_state, g.active_state))
+    if (isActive)
     {
         position += g.click_offset;
         switch (g.gizmode)
@@ -319,6 +315,7 @@ void position_gizmo(gizmo_editor & g, int id, float3 & position)
             case gizmo_mode::translate_yz: plane_translation_dragger(g, { 1,0,0 }, position); break;
             case gizmo_mode::translate_zx: plane_translation_dragger(g, { 0,1,0 }, position); break;
             case gizmo_mode::translate_xy: plane_translation_dragger(g, { 0,0,1 }, position); break;
+            case gizmo_mode::translate_xyz: plane_translation_dragger(g, { 0,0,0 }, position); break;
         }
         position -= g.click_offset;
     }

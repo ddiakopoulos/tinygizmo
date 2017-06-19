@@ -482,13 +482,13 @@ struct camera_parameters
 
 ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam);
 
-enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, rotate_yz, rotate_zx, rotate_xy };
+enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, translate_xyz, rotate_yz, rotate_zx, rotate_xy };
 
 struct gizmo_editor
 {
     gizmo_editor();
 
-    geometry_mesh geomeshes[9];             // Meshes used for drawing gizmo elements
+    geometry_mesh geomeshes[10];             // Meshes used for drawing gizmo elements
 
     struct interaction_state
     {
