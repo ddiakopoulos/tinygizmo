@@ -429,6 +429,22 @@ using namespace minalg;
 
 const float tau = 6.2831853f;
 
+// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+inline uint32_t hash_fnv1a(const std::string & str)
+{
+    static const uint32_t fnv1aBase32 = 0x811C9DC5u;
+    static const uint32_t fnv1aPrime32 = 0x01000193u;
+
+    uint32_t result = fnv1aBase32;
+    
+    for (auto & c : str)
+    {
+        result ^= static_cast<uint32_t>(c);
+        result *= fnv1aPrime32;
+    }
+    return result;
+}
+
 struct rect
 {
     int x0, y0, x1, y1;

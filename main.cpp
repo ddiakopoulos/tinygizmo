@@ -212,6 +212,9 @@ int main(int argc, char * argv[])
         gizmoEditor.draw();
 
         std::cout << "Position: " << gp << std::endl;
+
+        std::cout << hash_fnv1a("hello world!") << std::endl;
+        std::cout << hash_fnv1a("hello world") << std::endl;
         gl_check_error(__FILE__, __LINE__);
 
         win->swap_buffers();
