@@ -257,7 +257,7 @@ void axis_rotation_dragger(gizmo_context & g, const float3 & axis, const float3 
 {
     if (g.active_state.mouse_left)
     {
-        pose original_pose = { g.original_orientation, g.original_position };
+        rigid_transform original_pose = { g.original_orientation, g.original_position };
         float3 the_axis = original_pose.transform_vector(axis);
         float4 the_plane = { the_axis, -dot(the_axis, g.click_offset) };
         const ray r = g.get_ray_from_cursor(g.active_state.cam);
@@ -412,7 +412,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
 
     auto h = hash_fnv1a(name);
 
-    auto p = pose(orientation, center);
+    auto p = rigid_transform(orientation, center);
 
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))
@@ -421,9 +421,9 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         float best_t = std::numeric_limits<float>::infinity(), t;
 
-        if (intersect_ray_mesh(ray, g.geomeshes[6], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_yz; best_t = t; }
-        if (intersect_ray_mesh(ray, g.geomeshes[7], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_zx; best_t = t; }
-        if (intersect_ray_mesh(ray, g.geomeshes[8], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_xy; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[6], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_x; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[7], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_y; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[8], &t) && t < best_t) { g.gizmode = gizmo_mode::rotate_z; best_t = t; }
 
         if (g.gizmode != gizmo_mode::none)
         {
@@ -440,9 +440,9 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
     {
         switch (g.gizmode)
         {
-        case gizmo_mode::rotate_yz: axis_rotation_dragger(g, { 1,0,0 }, center, orientation); break;
-        case gizmo_mode::rotate_zx: axis_rotation_dragger(g, { 0,1,0 }, center, orientation); break;
-        case gizmo_mode::rotate_xy: axis_rotation_dragger(g, { 0,0,1 }, center, orientation); break;
+        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1,0,0 }, center, orientation); break;
+        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0,1,0 }, center, orientation); break;
+        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0,0,1 }, center, orientation); break;
         }
     }
 
@@ -452,20 +452,19 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         g.gizmode = gizmo_mode::none;
     }
 
-    // Add the gizmo to our 3D draw list
-    const float3 colors[] = {
-        g.gizmode == gizmo_mode::rotate_yz ? float3(0.5f,1,1) : float3(0,1,1),
-        g.gizmode == gizmo_mode::rotate_zx ? float3(1,0.5f,1) : float3(1,0,1),
-        g.gizmode == gizmo_mode::rotate_xy ? float3(1,1,0.5f) : float3(1,1,0),
+    std::map<int, float3> colors{
+        { 6, g.gizmode == gizmo_mode::rotate_x ? float3(1, 0.5f, 0.5f) : float3(1, 0, 0) },
+        { 7, g.gizmode == gizmo_mode::rotate_y ? float3(0.5f,1,0.5f) : float3(0,1,0) },
+        { 8, g.gizmode == gizmo_mode::rotate_z ? float3(0.5f,0.5f,1) : float3(0,0,1) },
     };
 
     const auto model = p.matrix();
 
-    for (int i = 6; i < 9; ++i)
+    for (auto i : { 6, 7, 8 })
     {
         gizmo_renderable r;
         r.mesh = g.geomeshes[i];
-        r.color = colors[i - 6];
+        r.color = colors[i];
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
@@ -486,12 +485,11 @@ void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & c
     }
 }
 
-
 void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float3 & scale)
 {
     auto h = hash_fnv1a(name);
 
-    auto p = pose(float4(0, 0, 0, 1), center);
+    auto p = rigid_transform(float4(0, 0, 0, 1), center);
 
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))

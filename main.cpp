@@ -211,10 +211,10 @@ int main(int argc, char * argv[])
         gizmoEditor.update(gis);
 
         //position_gizmo("position-example-gizmo", gizmoEditor, gp);
-        //orientation_gizmo("orientation-example-gizmo", gizmoEditor, gp, ori);
-        scale_gizmo("orientation-example-gizmo", gizmoEditor, gp, scale);
+        orientation_gizmo("orientation-example-gizmo", gizmoEditor, gp, ori);
+        //scale_gizmo("scale-example-gizmo", gizmoEditor, gp, scale);
 
-        std::cout << "scale: " << scale << std::endl;
+        std::cout << "scale: " << ori << std::endl;
         gizmoEditor.draw();
 
         gl_check_error(__FILE__, __LINE__);

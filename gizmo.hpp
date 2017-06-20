@@ -441,19 +441,24 @@ struct rect
     template<class T> bool contains(const minalg::vec<T, 2> & point) const { return point.x >= x0 && point.y >= y0 && point.x < x1 && point.y < y1; }
 };
 
-struct pose
+struct rigid_transform
 {
-    float4 orientation; float3 position;
-    pose() : pose({ 0,0,0,1 }, { 0,0,0 }) {}
-    pose(const float4 & orientation) : pose(orientation, { 0,0,0 }) {}
-    pose(const float3 & position) : pose({ 0,0,0,1 }, position) {}
-    pose(const float4 & orientation, const float3 & position) : orientation(orientation), position(position) {}
+    float3  position{ 0,0,0 };
+    float4  orientation{ 0,0,0,1 };
+    float3  scale{ 1,1,1 };
 
-    float4x4 matrix() const { return pose_matrix(orientation, position); }
-    float3 transform_vector(const float3 & v) const { return qrot(orientation, v); }
-    float3 transform_point(const float3 & p) const { return position + transform_vector(p); }
-    float3 detransform_point(const float3 & p) const { return detransform_vector(p - position); }
-    float3 detransform_vector(const float3 & v) const { return qrot(qconj(orientation), v); }
+    rigid_transform() {}
+    rigid_transform(const float4 & orientation, const float3 & position, const float3 & scale) : orientation(orientation), position(position), scale(scale) {}
+    rigid_transform(const float4 & orientation, const float3 & position, float scale) : orientation(orientation), position(position), scale(scale) {}
+    rigid_transform(const float4 & orientation, const float3 & position) : orientation(orientation), position(position) {}
+
+    float4x4    matrix() const { return{ { qxdir(orientation)*scale.x,0 },{ qydir(orientation)*scale.y,0 },{ qzdir(orientation)*scale.z,0 },{ position,1 } }; }
+    float3      transform_vector(const float3 & vec) const { return qrot(orientation, vec * scale); }
+    float3      transform_point(const float3 & p) const { return position + transform_vector(p); }
+    float3      detransform_point(const float3 & p) const { return detransform_vector(p - position); }
+    float3      detransform_vector(const float3 & vec) const { return qrot(qconj(orientation), vec) / scale; }
+
+    bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
 };
 
 // 32 bit Fowler–Noll–Vo Hash
@@ -498,8 +503,8 @@ struct geometry_vertex { float3 position, normal, color; };
 struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
 struct gizmo_renderable { geometry_mesh mesh; float3 color; };
 
-inline ray transform(const pose & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
-inline ray detransform(const pose & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
+inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
+inline ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
 inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
 
 bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t = 0);
@@ -521,7 +526,16 @@ struct camera_parameters
 
 ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam);
 
-enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, translate_xyz, rotate_yz, rotate_zx, rotate_xy, scale_x, scale_y, scale_z, scale_xyz };
+enum class gizmo_mode 
+{ 
+    none, 
+    translate_x, translate_y, translate_z, 
+    translate_yz, translate_zx, translate_xy, 
+    translate_xyz, 
+    rotate_x, rotate_y, rotate_z, 
+    scale_x, scale_y, scale_z, 
+    scale_xyz 
+};
 
 struct gizmo_context
 {
