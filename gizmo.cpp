@@ -329,13 +329,15 @@ void axis_translation_dragger(gizmo_context & g, const float3 & axis, float3 & p
 
 void position_gizmo(const std::string & name, gizmo_context & g, const float4 & orientation, float3 & position)
 {
+    auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), position);
+
     auto h = hash_fnv1a(name);
 
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))
     {
         g.gizmode = gizmo_mode::none;
-        auto ray = g.get_ray_from_cursor(g.active_state.cam);
+        auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         ray.origin -= position;
 
         float best_t = std::numeric_limits<float>::infinity(), t;
@@ -350,34 +352,35 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
 
         if (g.gizmode != gizmo_mode::none)
         {
-            g.click_offset = ray.origin + ray.direction*t;
+            g.click_offset = p.transform_point(ray.origin + ray.direction*t);
             g.active[h] = true;
         }
         else g.active[h] = false;
     }
 
     std::vector<float3> global_axes = { {1, 0, 0}, {0, 1, 0}, {0, 0, 1} };
+    std::vector<float3> local_axes = { qxdir(p.orientation), qydir(p.orientation), qzdir(p.orientation) };
 
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
     if (g.active[h])
     {
-        position += g.click_offset;
+        p.position += g.click_offset;
         switch (g.gizmode)
         {
-            case gizmo_mode::translate_x: axis_translation_dragger(g, global_axes[0], position); break;
-            case gizmo_mode::translate_y: axis_translation_dragger(g, global_axes[1], position); break;
-            case gizmo_mode::translate_z: axis_translation_dragger(g, global_axes[2], position); break;
-            case gizmo_mode::translate_yz: plane_translation_dragger(g, global_axes[0], position); break;
-            case gizmo_mode::translate_zx: plane_translation_dragger(g, global_axes[1], position); break;
-            case gizmo_mode::translate_xy: plane_translation_dragger(g, global_axes[2], position); break;
-            case gizmo_mode::translate_xyz: plane_translation_dragger(g, -minalg::qzdir(g.active_state.cam.orientation), position); break;
+        case gizmo_mode::translate_x: axis_translation_dragger(g, g.local_toggle ? local_axes[0] : global_axes[0], p.position); break;
+        case gizmo_mode::translate_y: axis_translation_dragger(g, g.local_toggle ? local_axes[1] : global_axes[1], p.position); break;
+        case gizmo_mode::translate_z: axis_translation_dragger(g, g.local_toggle ? local_axes[2] : global_axes[2], p.position); break;
+        case gizmo_mode::translate_yz: plane_translation_dragger(g, g.local_toggle ? local_axes[0] : global_axes[0], p.position); break;
+        case gizmo_mode::translate_zx: plane_translation_dragger(g, g.local_toggle ? local_axes[1] : global_axes[1], p.position); break;
+        case gizmo_mode::translate_xy: plane_translation_dragger(g, g.local_toggle ? local_axes[2] : global_axes[2], p.position); break;
+        case gizmo_mode::translate_xyz: plane_translation_dragger(g, -minalg::qzdir(g.active_state.cam.orientation), p.position); break;
         }
-        position -= g.click_offset;
+        p.position -= g.click_offset;
     }
 
     if (g.active_state.snap_translation)
     {
-        position = snap(position, g.active_state.snap_translation);
+        p.position = snap(p.position, g.active_state.snap_translation);
     }
 
     // On release, deactivate the current gizmo mode
@@ -396,7 +399,8 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
         {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f)        : float3(1.f)},
     };
 
-    auto model = translation_matrix(position);
+    //float4x4 model = g.local_toggle ? p.matrix() : translation_matrix(p.position);
+    float4x4 model = p.matrix();
 
     for (auto meshIdx : { 0, 1, 2, 3, 4, 5, 9 })
     {
@@ -406,6 +410,8 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
+
+    position = p.position;
 }
 
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
@@ -534,11 +540,17 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
 
     auto model = p.matrix();
 
+    std::map<int, float3> colors{
+        { 10, g.gizmode == gizmo_mode::scale_x ? float3(1, 0.5f, 0.5f) : float3(1, 0, 0) },
+        { 11, g.gizmode == gizmo_mode::scale_y ? float3(0.5f,1,0.5f) : float3(0,1,0) },
+        { 12, g.gizmode == gizmo_mode::scale_z ? float3(0.5f,0.5f,1) : float3(0,0,1) },
+    };
+
     for (int i = 10; i < 13; ++i)
     {
         gizmo_renderable r;
         r.mesh = g.geomeshes[i];
-        r.color = float3(1, 1, 1);
+        r.color = colors[i];
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }

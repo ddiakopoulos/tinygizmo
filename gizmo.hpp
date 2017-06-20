@@ -23,6 +23,7 @@
 // [ ] multi-gizmo
 // [ ] local vs global
 // [ ] util for quitting gizmo edit - esc key (undo stack?!)
+// [ ] arbitrary coordinate systems
 
 // Visual Studio versions prior to 2015 lack constexpr support
 #if defined(_MSC_VER) && _MSC_VER < 1900 && !defined(constexpr)
@@ -577,7 +578,7 @@ struct gizmo_context
     float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
     float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
     float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
-    bool local_toggle;                      // ... 
+    bool local_toggle{ false };             // ... 
 
     void update(interaction_state & state); // Clear geometry buffer and update interaction data
     void draw();                            // Draw
