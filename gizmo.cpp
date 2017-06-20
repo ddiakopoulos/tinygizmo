@@ -200,16 +200,29 @@ gizmo_context::gizmo_context()
 {
     std::initializer_list<float2> arrow_points = { { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::initializer_list<float2> ring_points = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
+    
+    // Translation arms
     geomeshes[0] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 16, arrow_points);
     geomeshes[1] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 16, arrow_points);
     geomeshes[2] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 16, arrow_points);
+
+    // Wings for the plane draggers
     geomeshes[3] = make_box_geometry({ -0.01f,0.25,0.25 }, { 0.01f,0.75f,0.75f });
     geomeshes[4] = make_box_geometry({ 0.25,-0.01f,0.25 }, { 0.75f,0.01f,0.75f });
     geomeshes[5] = make_box_geometry({ 0.25,0.25,-0.01f }, { 0.75f,0.75f,0.01f });
+
+    // Orientation rings
     geomeshes[6] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 32, ring_points);
     geomeshes[7] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 32, ring_points);
     geomeshes[8] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 32, ring_points);
+
+    // Center box for translation
     geomeshes[9] = make_box_geometry({ -0.05f,-0.05f,-0.05f }, { 0.05f,0.05f,0.05f });
+
+    // Scale
+    geomeshes[10] = make_box_geometry({  0.75f, -0.25f, -0.25f }, { 1.25f, 0.25f, 0.25f });
+    geomeshes[11] = make_box_geometry({ -0.25f,  0.75f, -0.25f }, { 0.25f, 1.25f, 0.25f });
+    geomeshes[12] = make_box_geometry({ -0.25f, -0.25f,  0.75f }, { 0.25f, 0.25f, 1.25f });
 }
 
 void gizmo_context::update(interaction_state & state)
@@ -456,4 +469,43 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
+}
+
+void scale_gizmo(const std::string & name, gizmo_context & g, float3 & scale)
+{
+    auto h = hash_fnv1a(name);
+
+    auto p = pose(float4(0, 0, 0, 1), float3(0, 0, 0));
+
+    // On click, set the gizmo mode based on which component the user clicked on
+    if (has_clicked(g.last_state, g.active_state))
+    {
+        g.gizmode = gizmo_mode::none;
+        auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        float best_t = std::numeric_limits<float>::infinity(), t;
+
+        if (intersect_ray_mesh(ray, g.geomeshes[10], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_x; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[12], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_y; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[12], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_z; best_t = t; }
+        // todo - if t then also scale_xyz
+
+        if (g.gizmode != gizmo_mode::none)
+        {
+            g.click_offset = p.transform_point(ray.origin + ray.direction*t);
+            g.active[h] = true;
+        }
+        else g.active[h] = false;
+    }
+
+    auto model = p.matrix();
+
+    for (int i = 10; i < 13; ++i)
+    {
+        gizmo_renderable r;
+        r.mesh = g.geomeshes[i];
+        r.color = float3(1, 1, 1);
+        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        g.drawlist.push_back(r);
+    }
+
 }

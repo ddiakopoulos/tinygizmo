@@ -15,14 +15,14 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gizmo.hpp">
-      <Filter>gizmo</Filter>
-    </ClInclude>
     <ClInclude Include="util.hpp">
       <Filter>extra</Filter>
     </ClInclude>
     <ClInclude Include="gl-api.hpp">
       <Filter>extra</Filter>
+    </ClInclude>
+    <ClInclude Include="gizmo.hpp">
+      <Filter>gizmo</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

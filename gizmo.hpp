@@ -518,13 +518,13 @@ struct camera_parameters
 
 ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam);
 
-enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, translate_xyz, rotate_yz, rotate_zx, rotate_xy };
+enum class gizmo_mode { none, translate_x, translate_y, translate_z, translate_yz, translate_zx, translate_xy, translate_xyz, rotate_yz, rotate_zx, rotate_xy, scale_x, scale_y, scale_z, scale_xyz };
 
 struct gizmo_context
 {
     gizmo_context();
 
-    geometry_mesh geomeshes[10];             // Meshes used for drawing gizmo elements
+    geometry_mesh geomeshes[13];             // Meshes used for drawing gizmo elements
 
     struct interaction_state
     {
@@ -569,6 +569,6 @@ struct gizmo_context
 
 void position_gizmo(const std::string & name, gizmo_context & g, float3 & position);
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation);
-// todo - scale_gizmo
+void scale_gizmo(const std::string & name, gizmo_context & g, float3 & scale);
 
 #endif // end gizmin_hpp
