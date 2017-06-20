@@ -471,11 +471,27 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
     }
 }
 
-void scale_gizmo(const std::string & name, gizmo_context & g, float3 & scale)
+void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale)
+{
+    if (g.active_state.mouse_left)
+    {
+        float3 s = center;
+
+        const float3 plane_tangent = cross(axis, center - g.active_state.cam.position);
+        const float3 plane_normal = cross(axis, plane_tangent);
+        plane_translation_dragger(g, plane_normal, s);
+
+        auto scaled = g.original_scale + axis * ((s - 1.f) * dot(g.original_scale, axis));
+        scale = float3(clamp(scaled.x, 0.01f, 1000.f), clamp(scaled.y, 0.01f, 1000.f), clamp(scaled.z, 0.01f, 1000.f));
+    }
+}
+
+
+void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float3 & scale)
 {
     auto h = hash_fnv1a(name);
 
-    auto p = pose(float4(0, 0, 0, 1), float3(0, 0, 0));
+    auto p = pose(float4(0, 0, 0, 1), center);
 
     // On click, set the gizmo mode based on which component the user clicked on
     if (has_clicked(g.last_state, g.active_state))
@@ -484,17 +500,36 @@ void scale_gizmo(const std::string & name, gizmo_context & g, float3 & scale)
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         float best_t = std::numeric_limits<float>::infinity(), t;
 
+
         if (intersect_ray_mesh(ray, g.geomeshes[10], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_x; best_t = t; }
-        if (intersect_ray_mesh(ray, g.geomeshes[12], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_y; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[11], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_y; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[12], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_z; best_t = t; }
-        // todo - if t then also scale_xyz
 
         if (g.gizmode != gizmo_mode::none)
         {
+            g.original_scale = scale;
+            g.original_position = center;
             g.click_offset = p.transform_point(ray.origin + ray.direction*t);
             g.active[h] = true;
         }
         else g.active[h] = false;
+    }
+
+    // On release, deactivate the current gizmo mode
+    if (has_released(g.last_state, g.active_state))
+    {
+        g.gizmode = gizmo_mode::none;
+    }
+
+    // todo - if t then also scale_xyz
+    if (g.active[h])
+    {
+        switch (g.gizmode)
+        {
+        case gizmo_mode::scale_x: axis_scale_dragger(g, { 1,0,0 }, center, scale); break;
+        case gizmo_mode::scale_y: axis_scale_dragger(g, { 0,1,0 }, center, scale); break;
+        case gizmo_mode::scale_z: axis_scale_dragger(g, { 0,0,1 }, center, scale); break;
+        }
     }
 
     auto model = p.matrix();

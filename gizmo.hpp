@@ -22,6 +22,7 @@
 // [ ] scale gizmo
 // [ ] multi-gizmo
 // [ ] local vs global
+// [ ] util for quitting gizmo edit - esc key (undo stack?!)
 
 // Visual Studio versions prior to 2015 lack constexpr support
 #if defined(_MSC_VER) && _MSC_VER < 1900 && !defined(constexpr)
@@ -490,6 +491,8 @@ inline float4 make_rotation_quat_between_vectors_snapped(const float3 & from, co
     return make_rotation_quat_axis_angle(normalize(cross(a, b)), snappedAcos);
 }
 
+template<typename T> T clamp(const T & val, const T & min, const T & max) { return std::min(std::max(val, min), max); }
+
 struct ray { float3 origin, direction; };
 struct geometry_vertex { float3 position, normal, color; };
 struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
@@ -550,6 +553,7 @@ struct gizmo_context
 
     float3 original_position;               // Original position of an object being manipulated with a gizmo
     float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
+    float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
     float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
     bool local_toggle;                      // ... 
 
@@ -569,6 +573,6 @@ struct gizmo_context
 
 void position_gizmo(const std::string & name, gizmo_context & g, float3 & position);
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation);
-void scale_gizmo(const std::string & name, gizmo_context & g, float3 & scale);
+void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float3 & scale);
 
 #endif // end gizmin_hpp

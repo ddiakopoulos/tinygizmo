@@ -166,7 +166,7 @@ int main(int argc, char * argv[])
 
     float3 gp = float3(0, 0, 0);
     float4 ori = float4(0, 0, 0, 1);
-    float3 scale = float3(0, 0, 1);
+    float3 scale = float3(1, 1, 1);
 
     auto t0 = std::chrono::high_resolution_clock::now();
     while (!win->should_close())
@@ -212,7 +212,7 @@ int main(int argc, char * argv[])
 
         //position_gizmo("position-example-gizmo", gizmoEditor, gp);
         //orientation_gizmo("orientation-example-gizmo", gizmoEditor, gp, ori);
-        scale_gizmo("orientation-example-gizmo", gizmoEditor, scale);
+        scale_gizmo("orientation-example-gizmo", gizmoEditor, gp, scale);
 
         std::cout << "scale: " << scale << std::endl;
         gizmoEditor.draw();
