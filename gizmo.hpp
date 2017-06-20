@@ -537,6 +537,13 @@ enum class gizmo_mode
     scale_xyz 
 };
 
+enum class draw_mode
+{
+    translate,
+    rotate,
+    scale
+};
+
 struct gizmo_context
 {
     gizmo_context();
@@ -564,6 +571,7 @@ struct gizmo_context
     interaction_state active_state, last_state;
 
     gizmo_mode gizmode;                     // Mode that the gizmo is currently in
+    draw_mode drawmode{draw_mode::translate };
 
     float3 original_position;               // Original position of an object being manipulated with a gizmo
     float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
@@ -585,8 +593,9 @@ struct gizmo_context
 //   Gizmo Definitions    //
 ////////////////////////////
 
-void position_gizmo(const std::string & name, gizmo_context & g, float3 & position);
+void position_gizmo(const std::string & name, gizmo_context & g, const float4 & orientation, float3 & position);
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation);
 void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float3 & scale);
+void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
 
 #endif // end gizmin_hpp
