@@ -164,7 +164,8 @@ int main(int argc, char * argv[])
         }
     };
 
-    float3 gp;
+    float3 gp = float3(0, 0, 0);
+    float4 ori = float4(0, 0, 0, 1);
 
     auto t0 = std::chrono::high_resolution_clock::now();
     while (!win->should_close())
@@ -207,12 +208,11 @@ int main(int argc, char * argv[])
         gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
         gizmoEditor.update(gis);
-        position_gizmo("position-gizmo", gizmoEditor, gp);
+
+        //position_gizmo("position-example-gizmo", gizmoEditor, gp);
+        orientation_gizmo("orientation-example-gizmo", gizmoEditor, gp, ori);
+
         gizmoEditor.draw();
-
-        std::cout << "Position: " << gp << std::endl;
-
-        for (auto v : gizmoEditor.active) std::cout << v.second << std::endl;
 
         gl_check_error(__FILE__, __LINE__);
 

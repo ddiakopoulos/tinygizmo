@@ -199,16 +199,16 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
 gizmo_context::gizmo_context()
 {
     std::initializer_list<float2> arrow_points = { { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
-    std::initializer_list<float2> ring_points = { { +0.05f, 1 },{ -0.05f, 1 },{ -0.05f, 1 },{ -0.05f, 1.2f },{ -0.05f, 1.2f },{ +0.05f, 1.2f },{ +0.05f, 1.2f },{ +0.05f, 1 } };
+    std::initializer_list<float2> ring_points = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
     geomeshes[0] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 16, arrow_points);
     geomeshes[1] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 16, arrow_points);
     geomeshes[2] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 16, arrow_points);
     geomeshes[3] = make_box_geometry({ -0.01f,0.25,0.25 }, { 0.01f,0.75f,0.75f });
     geomeshes[4] = make_box_geometry({ 0.25,-0.01f,0.25 }, { 0.75f,0.01f,0.75f });
     geomeshes[5] = make_box_geometry({ 0.25,0.25,-0.01f }, { 0.75f,0.75f,0.01f });
-    geomeshes[6] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 24, ring_points);
-    geomeshes[7] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 24, ring_points);
-    geomeshes[8] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 24, ring_points);
+    geomeshes[6] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 32, ring_points);
+    geomeshes[7] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 32, ring_points);
+    geomeshes[8] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 32, ring_points);
     geomeshes[9] = make_box_geometry({ -0.05f,-0.05f,-0.05f }, { 0.05f,0.05f,0.05f });
 }
 
@@ -334,7 +334,6 @@ void position_gizmo(const std::string & name, gizmo_context & g, float3 & positi
         if (intersect_ray_mesh(ray, g.geomeshes[5], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xy; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[9], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xyz; best_t = t; }
 
-
         if (g.gizmode != gizmo_mode::none)
         {
             g.click_offset = ray.origin + ray.direction*t;
@@ -396,6 +395,10 @@ void position_gizmo(const std::string & name, gizmo_context & g, float3 & positi
 
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
+    // todo - check valid quat 
+
+    auto h = hash_fnv1a(name);
+
     auto p = pose(orientation, center);
 
     // On click, set the gizmo mode based on which component the user clicked on
@@ -414,14 +417,13 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
             g.original_position = center;
             g.original_orientation = orientation;
             g.click_offset = p.transform_point(ray.origin + ray.direction*t);
-           // g.g.set_pressed(id);
+            g.active[h] = true;
         }
+        else g.active[h] = false;
     }
 
-    // TODO
-    /*
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
-    if (g.g.is_pressed(id))
+    if (g.active[h])
     {
         switch (g.gizmode)
         {
@@ -430,7 +432,6 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         case gizmo_mode::rotate_xy: axis_rotation_dragger(g, { 0,0,1 }, center, orientation); break;
         }
     }
-    */
 
     // On release, deactivate the current gizmo mode
     if (has_released(g.last_state, g.active_state))

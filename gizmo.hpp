@@ -471,7 +471,7 @@ inline uint32_t hash_fnv1a(const std::string & str)
     return result;
 }
 
-inline static float3 snap(const float3 & value, const float snap) 
+inline float3 snap(const float3 & value, const float snap) 
 {
     if (snap > 0.0f) return float3(floor(value / snap) * snap);
     return value;
