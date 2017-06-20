@@ -2,6 +2,7 @@
 // For more information, please refer to <http://unlicense.org>
 
 #include "gizmo.hpp"
+#include <assert.h>
 
 ///////////////
 // Utilities //
@@ -383,15 +384,14 @@ void position_gizmo(const std::string & name, gizmo_context & g, float3 & positi
         g.gizmode = gizmo_mode::none;
     }
 
-    // Add the gizmo to our 3D draw list
     std::map<int, float3> colors {
-        {0, g.gizmode == gizmo_mode::translate_x ? float3(1,0.5f,0.5f) : float3(1,0,0)},
-        {1, g.gizmode == gizmo_mode::translate_y ? float3(0.5f,1,0.5f) : float3(0,1,0)},
-        {2, g.gizmode == gizmo_mode::translate_z ? float3(0.5f,0.5f,1) : float3(0,0,1)},
-        {3, g.gizmode == gizmo_mode::translate_yz ? float3(0.5f,1,1) : float3(0,1,1)},
-        {4, g.gizmode == gizmo_mode::translate_zx ? float3(1,0.5f,1) : float3(1,0,1)},
-        {5, g.gizmode == gizmo_mode::translate_xy ? float3(1,1,0.5f) : float3(1,1,0)},
-        {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f) : float3(1.f)},
+        {0, g.gizmode == gizmo_mode::translate_x   ? float3(1,0.5f,0.5f) : float3(1,0,0)},
+        {1, g.gizmode == gizmo_mode::translate_y   ? float3(0.5f,1,0.5f) : float3(0,1,0)},
+        {2, g.gizmode == gizmo_mode::translate_z   ? float3(0.5f,0.5f,1) : float3(0,0,1)},
+        {3, g.gizmode == gizmo_mode::translate_yz  ? float3(0.5f,1,1)    : float3(0,1,1)},
+        {4, g.gizmode == gizmo_mode::translate_zx  ? float3(1,0.5f,1)    : float3(1,0,1)},
+        {5, g.gizmode == gizmo_mode::translate_xy  ? float3(1,1,0.5f)    : float3(1,1,0)},
+        {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f)        : float3(1.f)},
     };
 
     auto model = translation_matrix(position);
@@ -408,7 +408,7 @@ void position_gizmo(const std::string & name, gizmo_context & g, float3 & positi
 
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
-    // todo - check valid quat 
+    assert(length2(orientation) > float(1e-6));
 
     auto h = hash_fnv1a(name);
 
@@ -519,7 +519,7 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
         g.gizmode = gizmo_mode::none;
     }
 
-    // todo - if t then also scale_xyz
+    // todo - also scale_xyz
     if (g.active[h])
     {
         switch (g.gizmode)
