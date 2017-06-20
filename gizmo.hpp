@@ -430,22 +430,6 @@ using namespace minalg;
 
 const float tau = 6.28318530718f;
 
-// 32 bit Fowler–Noll–Vo Hash
-inline uint32_t hash_fnv1a(const std::string & str)
-{
-    static const uint32_t fnv1aBase32 = 0x811C9DC5u;
-    static const uint32_t fnv1aPrime32 = 0x01000193u;
-
-    uint32_t result = fnv1aBase32;
-    
-    for (auto & c : str)
-    {
-        result ^= static_cast<uint32_t>(c);
-        result *= fnv1aPrime32;
-    }
-    return result;
-}
-
 struct rect
 {
     int x0, y0, x1, y1;
@@ -470,6 +454,22 @@ struct pose
     float3 detransform_point(const float3 & p) const { return detransform_vector(p - position); }
     float3 detransform_vector(const float3 & v) const { return qrot(qconj(orientation), v); }
 };
+
+// 32 bit Fowler–Noll–Vo Hash
+inline uint32_t hash_fnv1a(const std::string & str)
+{
+    static const uint32_t fnv1aBase32 = 0x811C9DC5u;
+    static const uint32_t fnv1aPrime32 = 0x01000193u;
+
+    uint32_t result = fnv1aBase32;
+
+    for (auto & c : str)
+    {
+        result ^= static_cast<uint32_t>(c);
+        result *= fnv1aPrime32;
+    }
+    return result;
+}
 
 inline static float3 snap(const float3 & value, const float snap) 
 {
@@ -528,15 +528,15 @@ struct gizmo_context
 
     struct interaction_state
     {
-        bool mouse_left;
-        bool hotkey_translate;
-        bool hotkey_rotate;
-        bool hotkey_scale;
-        bool hotkey_local;
-        float snap_translation;             // ...
-        float snap_rotation;                // ...
-        float snap_scale;                   // ...
-        float timestep;                     // Timestep between the last frame and this one (unused)
+        bool mouse_left{ false };
+        bool hotkey_translate{ false };
+        bool hotkey_rotate{ false };
+        bool hotkey_scale{ false };
+        bool hotkey_local{ false };
+        float snap_translation{ 0.f };      // ...
+        float snap_rotation{ 0.f };         // ...
+        float snap_scale{ 0.f };            // ...
+        float timestep{ 0.f };              // Timestep between the last frame and this one (unused)
         rect viewport;                      // Current 3d viewport used to render the scene
         float2 cursor;                      // Current cursor location in window coordinates
         camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry

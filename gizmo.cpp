@@ -360,6 +360,11 @@ void position_gizmo(const std::string & name, gizmo_context & g, float3 & positi
         position -= g.click_offset;
     }
 
+    if (g.active_state.snap_translation)
+    {
+        position = snap(position, g.active_state.snap_translation);
+    }
+
     // On release, deactivate the current gizmo mode
     if (has_released(g.last_state, g.active_state))
     {
