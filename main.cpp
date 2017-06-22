@@ -217,8 +217,8 @@ int main(int argc, char * argv[])
 
         transform_gizmo("xform-example-gizmo", gizmoEditor, transform);
 
-        std::cout << "position: " << transform.position << std::endl;
-        std::cout << "local: " << gizmoEditor.local_toggle << std::endl;
+        //std::cout << "position: " << transform.position << std::endl;
+        //std::cout << "local: " << gizmoEditor.local_toggle << std::endl;
 
         gizmoEditor.draw();
 

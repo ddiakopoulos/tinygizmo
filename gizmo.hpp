@@ -457,7 +457,7 @@ struct rigid_transform
     float3      transform_vector(const float3 & vec) const { return qrot(orientation, vec * scale); }
     float3      transform_point(const float3 & p) const { return position + transform_vector(p); }
     float3      detransform_point(const float3 & p) const { return detransform_vector(p - position); }
-    float3      detransform_vector(const float3 & vec) const { return qrot(qconj(orientation), vec) / scale; }
+    float3      detransform_vector(const float3 & vec) const { return qrot(qinv(orientation), vec) / scale; }
 
     bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
 };
