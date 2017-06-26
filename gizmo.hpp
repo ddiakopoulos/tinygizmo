@@ -19,8 +19,8 @@
 
 // todo
 // [ ] snapping (linear + angular)
-// [ ] scale gizmo
-// [ ] multi-gizmo
+// [X] scale gizmo
+// [X] multi-gizmo
 // [ ] local vs global
 // [ ] util for quitting gizmo edit - esc key (undo stack?!)
 // [ ] arbitrary coordinate systems
@@ -582,7 +582,7 @@ struct gizmo_context
 
     bool local_toggle{ false };             // ...
     bool has_clicked{ false };              // ...
-    bool has_released{ false };              // ...
+    bool has_released{ false };             // ...
 
     void update(interaction_state & state); // Clear geometry buffer and update interaction data
     void draw();                            // Draw

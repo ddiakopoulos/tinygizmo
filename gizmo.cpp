@@ -338,7 +338,7 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
 
         if (g.gizmode != gizmo_mode::none)
         {
-            g.click_offset = g.local_toggle ? p.transform_vector(ray.origin + ray.direction*t) : ray.origin + ray.direction*t; //  ; //
+            g.click_offset = g.local_toggle ? p.transform_vector(ray.origin + ray.direction*t) : ray.origin + ray.direction*t;
             g.active[h] = true;
         }
         else g.active[h] = false;
@@ -382,7 +382,6 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
         {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f)        : float3(1.f)},
     };
 
-    //float4x4 model = g.local_toggle ? p.matrix() : translation_matrix(p.position);
     float4x4 model = p.matrix();
 
     for (auto meshIdx : { 0, 1, 2, 3, 4, 5, 9 })
@@ -393,17 +392,16 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
-
-    //position = p.position;
 }
 
+// Orientation is local by default
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
     assert(length2(orientation) > float(1e-6));
 
     auto h = hash_fnv1a(name);
 
-    auto p = rigid_transform(orientation, center);
+    auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center);
 
     // On click, set the gizmo mode based on which component the user clicked on
     if (g.has_clicked)
@@ -420,20 +418,22 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         {
             g.original_position = center;
             g.original_orientation = orientation;
-            g.click_offset = p.transform_point(ray.origin + ray.direction*t);
+            g.click_offset = p.transform_vector(ray.origin + ray.direction*t);
             g.active[h] = true;
         }
         else g.active[h] = false;
     }
+
+    std::vector<float3> global_axes = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
 
     // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
     if (g.active[h])
     {
         switch (g.gizmode)
         {
-        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1,0,0 }, center, orientation); break;
-        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0,1,0 }, center, orientation); break;
-        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0,0,1 }, center, orientation); break;
+        case gizmo_mode::rotate_x: axis_rotation_dragger(g, global_axes[0], center, orientation); break;
+        case gizmo_mode::rotate_y: axis_rotation_dragger(g, global_axes[1], center, orientation); break;
+        case gizmo_mode::rotate_z: axis_rotation_dragger(g, global_axes[2], center, orientation); break;
         }
     }
 
