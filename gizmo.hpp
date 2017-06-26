@@ -549,7 +549,7 @@ struct gizmo_context
 {
     gizmo_context();
 
-    geometry_mesh geomeshes[13];             // Meshes used for drawing gizmo elements
+    geometry_mesh geomeshes[16];             // Meshes used for drawing gizmo elements
 
     struct interaction_state
     {

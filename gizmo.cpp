@@ -205,9 +205,13 @@ gizmo_context::gizmo_context()
     geomeshes[9] = make_box_geometry({ -0.05f,-0.05f,-0.05f }, { 0.05f,0.05f,0.05f });
 
     // Scale
-    geomeshes[10] = make_box_geometry({  0.75f, -0.25f, -0.25f }, { 1.25f, 0.25f, 0.25f });
-    geomeshes[11] = make_box_geometry({ -0.25f,  0.75f, -0.25f }, { 0.25f, 1.25f, 0.25f });
-    geomeshes[12] = make_box_geometry({ -0.25f, -0.25f,  0.75f }, { 0.25f, 0.25f, 1.25f });
+    geomeshes[10] = make_box_geometry({  0.875f, -0.125f, -0.125f }, { 1.125f, 0.125f, 0.125f });
+    geomeshes[11] = make_box_geometry({ -0.125f,  0.875f, -0.125f }, { 0.125f, 1.125f, 0.125f });
+    geomeshes[12] = make_box_geometry({ -0.125f, -0.125f,  0.875f }, { 0.125f, 0.125f, 1.125f });
+
+    geomeshes[13] = make_box_geometry({  0.125f, -0.05f, -0.05f }, { 0.875f, 0.05f, 0.05f }); // x 
+    geomeshes[14] = make_box_geometry({  -0.05f,  0.125f, -0.05f }, { 0.05f, 0.875f, 0.05f }); // y
+    geomeshes[15] = make_box_geometry({  -0.05f,  -0.05f,  0.125f }, { 0.05f, 0.05f, 0.875f }); // z
 }
 
 void gizmo_context::update(interaction_state & state)
@@ -457,7 +461,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
     }
 }
 
-void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale)
+void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
 {
     if (g.active_state.mouse_left)
     {
@@ -468,7 +472,8 @@ void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & c
         plane_translation_dragger(g, plane_normal, s);
 
         auto scaled = g.original_scale + axis * ((s - 1.f) * dot(g.original_scale, axis));
-        scale = float3(clamp(scaled.x, 0.01f, 1000.f), clamp(scaled.y, 0.01f, 1000.f), clamp(scaled.z, 0.01f, 1000.f));
+        if (uniform) scale = float3(clamp(dot(s, scaled), 0.01f, 1000.f));
+        else scale = float3(clamp(scaled.x, 0.01f, 1000.f), clamp(scaled.y, 0.01f, 1000.f), clamp(scaled.z, 0.01f, 1000.f));
     }
 }
 
@@ -485,10 +490,12 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         float best_t = std::numeric_limits<float>::infinity(), t;
 
-
         if (intersect_ray_mesh(ray, g.geomeshes[10], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_x; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[11], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_y; best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[12], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_z; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[13], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_x; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[14], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_y; best_t = t; }
+        if (intersect_ray_mesh(ray, g.geomeshes[15], &t) && t < best_t) { g.gizmode = gizmo_mode::scale_z; best_t = t; }
 
         if (g.gizmode != gizmo_mode::none)
         {
@@ -511,9 +518,9 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
     {
         switch (g.gizmode)
         {
-        case gizmo_mode::scale_x: axis_scale_dragger(g, { 1,0,0 }, center, scale); break;
-        case gizmo_mode::scale_y: axis_scale_dragger(g, { 0,1,0 }, center, scale); break;
-        case gizmo_mode::scale_z: axis_scale_dragger(g, { 0,0,1 }, center, scale); break;
+        case gizmo_mode::scale_x: axis_scale_dragger(g, { 1,0,0 }, center, scale, g.active_state.hotkey_ctrl); break;
+        case gizmo_mode::scale_y: axis_scale_dragger(g, { 0,1,0 }, center, scale, g.active_state.hotkey_ctrl); break;
+        case gizmo_mode::scale_z: axis_scale_dragger(g, { 0,0,1 }, center, scale, g.active_state.hotkey_ctrl); break;
         }
     }
 
@@ -523,9 +530,12 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
         { 10, g.gizmode == gizmo_mode::scale_x ? float3(1, 0.5f, 0.5f) : float3(1, 0, 0) },
         { 11, g.gizmode == gizmo_mode::scale_y ? float3(0.5f,1,0.5f) : float3(0,1,0) },
         { 12, g.gizmode == gizmo_mode::scale_z ? float3(0.5f,0.5f,1) : float3(0,0,1) },
+        { 13, g.gizmode == gizmo_mode::scale_x ? float3(1, 0.5f, 0.5f) : float3(1, 0, 0) },
+        { 14, g.gizmode == gizmo_mode::scale_y ? float3(0.5f,1,0.5f) : float3(0,1,0) },
+        { 15, g.gizmode == gizmo_mode::scale_z ? float3(0.5f,0.5f,1) : float3(0,0,1) }
     };
 
-    for (int i = 10; i < 13; ++i)
+    for (int i = 10; i < 16; ++i)
     {
         gizmo_renderable r;
         r.mesh = g.geomeshes[i];
