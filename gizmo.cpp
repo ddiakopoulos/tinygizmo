@@ -538,9 +538,12 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
 
 void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t)
 {
-    if (g.last_state.hotkey_translate == false && g.active_state.hotkey_translate == true) g.drawmode = draw_mode::translate;
-    else if (g.last_state.hotkey_rotate == false && g.active_state.hotkey_rotate == true) g.drawmode = draw_mode::rotate;
-    else if (g.last_state.hotkey_scale == false && g.active_state.hotkey_scale == true) g.drawmode = draw_mode::scale;
+    if (g.active_state.hotkey_ctrl == true)
+    {
+        if (g.last_state.hotkey_translate == false && g.active_state.hotkey_translate == true) g.drawmode = draw_mode::translate;
+        else if (g.last_state.hotkey_rotate == false && g.active_state.hotkey_rotate == true) g.drawmode = draw_mode::rotate;
+        else if (g.last_state.hotkey_scale == false && g.active_state.hotkey_scale == true) g.drawmode = draw_mode::scale;
+    }
 
     if (g.drawmode == draw_mode::translate) position_gizmo(name, g, t.orientation, t.position);
     else if (g.drawmode == draw_mode::rotate) orientation_gizmo(name, g, t.position, t.orientation);

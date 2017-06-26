@@ -135,6 +135,7 @@ int main(int argc, char * argv[])
             if (event.value[0] == GLFW_KEY_T) gis.hotkey_translate = event.is_down();
             if (event.value[0] == GLFW_KEY_R) gis.hotkey_rotate = event.is_down();
             if (event.value[0] == GLFW_KEY_S) gis.hotkey_scale = event.is_down();
+            if (event.value[0] == GLFW_KEY_LEFT_CONTROL) gis.hotkey_ctrl = event.is_down();
 
             if (event.value[0] == GLFW_KEY_W) bf = event.is_down();
             if (event.value[0] == GLFW_KEY_A) bl = event.is_down();
