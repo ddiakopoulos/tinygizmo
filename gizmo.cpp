@@ -4,22 +4,6 @@
 #include "gizmo.hpp"
 #include <assert.h>
 
-///////////////
-// Utilities //
-///////////////
-
-inline bool has_clicked(const gizmo_context::interaction_state & last, const gizmo_context::interaction_state & active)
-{
-    if (last.mouse_left == false && active.mouse_left == true) return true;
-    return false;
-}
-
-inline bool has_released(const gizmo_context::interaction_state & last, const gizmo_context::interaction_state & active)
-{
-    if (last.mouse_left == true && active.mouse_left == false) return true;
-    return false;
-}
-
 /////////////////////////////////////////
 // Ray-Geometry Intersection Functions //
 /////////////////////////////////////////
@@ -230,6 +214,8 @@ void gizmo_context::update(interaction_state & state)
 {
     active_state = state;
     local_toggle = (last_state.hotkey_local == false && active_state.hotkey_local == true) ? !local_toggle : local_toggle;
+    has_clicked = (last_state.mouse_left == false && active_state.mouse_left == true) ? true : false;
+    has_released = (last_state.mouse_left == true && active_state.mouse_left == false) ? true : false;
     drawlist.clear();
 }
 
@@ -285,10 +271,7 @@ void axis_rotation_dragger(gizmo_context & g, const float3 & axis, const float3 
 void plane_translation_dragger(gizmo_context & g, const float3 & plane_normal, float3 & point)
 {
     // Mouse clicked
-    if (has_clicked(g.last_state, g.active_state)) 
-    { 
-        g.original_position = point; 
-    }
+    if (g.has_clicked) g.original_position = point; 
 
     if (g.active_state.mouse_left)
     {
@@ -334,7 +317,7 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     auto h = hash_fnv1a(name);
 
     // On click, set the gizmo mode based on which component the user clicked on
-    if (has_clicked(g.last_state, g.active_state))
+    if (g.has_clicked)
     {
         g.gizmode = gizmo_mode::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
@@ -380,7 +363,7 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     if (g.active_state.snap_translation) position = snap(position, g.active_state.snap_translation);
 
     // On release, deactivate the current gizmo mode
-    if (has_released(g.last_state, g.active_state))
+    if (g.has_released)
     {
         g.gizmode = gizmo_mode::none;
     }
@@ -419,7 +402,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
     auto p = rigid_transform(orientation, center);
 
     // On click, set the gizmo mode based on which component the user clicked on
-    if (has_clicked(g.last_state, g.active_state))
+    if (g.has_clicked)
     {
         g.gizmode = gizmo_mode::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
@@ -451,7 +434,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
     }
 
     // On release, deactivate the current gizmo mode
-    if (has_released(g.last_state, g.active_state))
+    if (g.has_released)
     {
         g.gizmode = gizmo_mode::none;
     }
@@ -496,7 +479,7 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
     auto p = rigid_transform(float4(0, 0, 0, 1), center);
 
     // On click, set the gizmo mode based on which component the user clicked on
-    if (has_clicked(g.last_state, g.active_state))
+    if (g.has_clicked)
     {
         g.gizmode = gizmo_mode::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
@@ -518,7 +501,7 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
     }
 
     // On release, deactivate the current gizmo mode
-    if (has_released(g.last_state, g.active_state))
+    if (g.has_released)
     {
         g.gizmode = gizmo_mode::none;
     }
