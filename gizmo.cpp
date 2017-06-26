@@ -320,12 +320,10 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
 
     auto h = hash_fnv1a(name);
 
-    // On click, set the gizmo mode based on which component the user clicked on
     if (g.has_clicked)
     {
         g.gizmode = gizmo_mode::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
-        //ray.origin -= position; // detransform
 
         float best_t = std::numeric_limits<float>::infinity(), t;
         if (intersect_ray_mesh(ray, g.geomeshes[0], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_x;   best_t = t; }
@@ -347,7 +345,6 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     std::vector<float3> global_axes = { {1, 0, 0}, {0, 1, 0}, {0, 0, 1} };
     std::vector<float3> local_axes = { qxdir(p.orientation), qydir(p.orientation), qzdir(p.orientation) };
 
-    // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
     if (g.active[h])
     {
         position += g.click_offset;
@@ -366,11 +363,7 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
 
     if (g.active_state.snap_translation) position = snap(position, g.active_state.snap_translation);
 
-    // On release, deactivate the current gizmo mode
-    if (g.has_released)
-    {
-        g.gizmode = gizmo_mode::none;
-    }
+    if (g.has_released) g.gizmode = gizmo_mode::none;
 
     std::map<int, float3> colors {
         {0, g.gizmode == gizmo_mode::translate_x   ? float3(1,0.5f,0.5f) : float3(1,0,0)},
@@ -394,16 +387,15 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     }
 }
 
-// Orientation is local by default
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
     assert(length2(orientation) > float(1e-6));
 
     auto h = hash_fnv1a(name);
 
+    // Orientation is local by default
     auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center);
 
-    // On click, set the gizmo mode based on which component the user clicked on
     if (g.has_clicked)
     {
         g.gizmode = gizmo_mode::none;
@@ -424,24 +416,17 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         else g.active[h] = false;
     }
 
-    std::vector<float3> global_axes = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
-
-    // If the user has previously clicked on a gizmo component, allow the user to interact with that gizmo
     if (g.active[h])
     {
         switch (g.gizmode)
         {
-        case gizmo_mode::rotate_x: axis_rotation_dragger(g, global_axes[0], center, orientation); break;
-        case gizmo_mode::rotate_y: axis_rotation_dragger(g, global_axes[1], center, orientation); break;
-        case gizmo_mode::rotate_z: axis_rotation_dragger(g, global_axes[2], center, orientation); break;
+        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, orientation); break;
+        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, orientation); break;
+        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, orientation); break;
         }
     }
 
-    // On release, deactivate the current gizmo mode
-    if (g.has_released)
-    {
-        g.gizmode = gizmo_mode::none;
-    }
+    if (g.has_released) g.gizmode = gizmo_mode::none;
 
     std::map<int, float3> colors{
         { 6, g.gizmode == gizmo_mode::rotate_x ? float3(1, 0.5f, 0.5f) : float3(1, 0, 0) },
@@ -483,7 +468,6 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
 
     auto p = rigid_transform(float4(0, 0, 0, 1), center);
 
-    // On click, set the gizmo mode based on which component the user clicked on
     if (g.has_clicked)
     {
         g.gizmode = gizmo_mode::none;
@@ -507,13 +491,8 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
         else g.active[h] = false;
     }
 
-    // On release, deactivate the current gizmo mode
-    if (g.has_released)
-    {
-        g.gizmode = gizmo_mode::none;
-    }
+    if (g.has_released) g.gizmode = gizmo_mode::none;
 
-    // todo - also scale_xyz
     if (g.active[h])
     {
         switch (g.gizmode)
@@ -526,7 +505,7 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
 
     auto model = p.matrix();
 
-    std::map<int, float3> colors{
+    std::map<int, float3> colors {
         { 10, g.gizmode == gizmo_mode::scale_x ? float3(1, 0.5f, 0.5f) : float3(1, 0, 0) },
         { 11, g.gizmode == gizmo_mode::scale_y ? float3(0.5f,1,0.5f) : float3(0,1,0) },
         { 12, g.gizmode == gizmo_mode::scale_z ? float3(0.5f,0.5f,1) : float3(0,0,1) },
