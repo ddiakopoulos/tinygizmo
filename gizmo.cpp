@@ -186,10 +186,19 @@ gizmo_context::gizmo_context()
     std::initializer_list<float2> arrow_points = { { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::initializer_list<float2> ring_points = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
     
-    // Translation arms
-    geomeshes[0] = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 16, arrow_points);
-    geomeshes[1] = make_lathed_geometry({ 0,1,0 }, { 0,0,1 }, { 1,0,0 }, 16, arrow_points);
-    geomeshes[2] = make_lathed_geometry({ 0,0,1 }, { 1,0,0 }, { 0,1,0 }, 16, arrow_points);
+    /*
+        {0, g.gizmode == gizmo_mode::translate_x   ? float3(1,0.5f,0.5f) : float3(1,0,0)},
+        {1, g.gizmode == gizmo_mode::translate_y   ? float3(0.5f,1,0.5f) : float3(0,1,0)},
+        {2, g.gizmode == gizmo_mode::translate_z   ? float3(0.5f,0.5f,1) : float3(0,0,1)},
+        {3, g.gizmode == gizmo_mode::translate_yz  ? float3(0.5f,1,1)    : float3(0,1,1)},
+        {4, g.gizmode == gizmo_mode::translate_zx  ? float3(1,0.5f,1)    : float3(1,0,1)},
+        {5, g.gizmode == gizmo_mode::translate_xy  ? float3(1,1,0.5f)    : float3(1,1,0)},
+        {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f)        : float3(1.f)},
+    */
+
+    mesh_components[gizmo_mode::translate_x] = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f }, { 1,0,0 } };
+    mesh_components[gizmo_mode::translate_y] = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f }, { 0,1,0 } };
+    mesh_components[gizmo_mode::translate_z] = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1 }, { 0,0,1 } };
 
     // Wings for the plane draggers
     geomeshes[3] = make_box_geometry({ -0.01f,0.25,0.25 }, { 0.01f,0.75f,0.75f });
@@ -326,9 +335,9 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
 
         float best_t = std::numeric_limits<float>::infinity(), t;
-        if (intersect_ray_mesh(ray, g.geomeshes[0], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_x;   best_t = t; }
-        if (intersect_ray_mesh(ray, g.geomeshes[1], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_y;   best_t = t; }
-        if (intersect_ray_mesh(ray, g.geomeshes[2], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_z;   best_t = t; }
+        if (intersect_ray_mesh(ray, g.mesh_components[gizmo_mode::translate_x].mesh, &t) && t < best_t) { g.gizmode = gizmo_mode::translate_x;   best_t = t; }
+        if (intersect_ray_mesh(ray, g.mesh_components[gizmo_mode::translate_y].mesh, &t) && t < best_t) { g.gizmode = gizmo_mode::translate_y;   best_t = t; }
+        if (intersect_ray_mesh(ray, g.mesh_components[gizmo_mode::translate_z].mesh, &t) && t < best_t) { g.gizmode = gizmo_mode::translate_z;   best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[3], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_yz;  best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[4], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_zx;  best_t = t; }
         if (intersect_ray_mesh(ray, g.geomeshes[5], &t) && t < best_t) { g.gizmode = gizmo_mode::translate_xy;  best_t = t; }
@@ -365,23 +374,19 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
 
     if (g.has_released) g.gizmode = gizmo_mode::none;
 
-    std::map<int, float3> colors {
-        {0, g.gizmode == gizmo_mode::translate_x   ? float3(1,0.5f,0.5f) : float3(1,0,0)},
-        {1, g.gizmode == gizmo_mode::translate_y   ? float3(0.5f,1,0.5f) : float3(0,1,0)},
-        {2, g.gizmode == gizmo_mode::translate_z   ? float3(0.5f,0.5f,1) : float3(0,0,1)},
-        {3, g.gizmode == gizmo_mode::translate_yz  ? float3(0.5f,1,1)    : float3(0,1,1)},
-        {4, g.gizmode == gizmo_mode::translate_zx  ? float3(1,0.5f,1)    : float3(1,0,1)},
-        {5, g.gizmode == gizmo_mode::translate_xy  ? float3(1,1,0.5f)    : float3(1,1,0)},
-        {9, g.gizmode == gizmo_mode::translate_xyz ? float3(0.9f)        : float3(1.f)},
+    std::vector<gizmo_mode> draw_components 
+    {
+        gizmo_mode::translate_x, gizmo_mode::translate_y, gizmo_mode::translate_z,
+        //gizmo_mode::translate_yz, gizmo_mode::translate_zx, gizmo_mode::translate_xy, gizmo_mode::translate_xyz
     };
 
     float4x4 model = p.matrix();
 
-    for (auto meshIdx : { 0, 1, 2, 3, 4, 5, 9 })
+    for (auto c : draw_components)
     {
         gizmo_renderable r;
-        r.mesh = g.geomeshes[meshIdx];
-        r.color = colors[meshIdx];
+        r.mesh = g.mesh_components[c].mesh;
+        r.color = (c == g.gizmode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }

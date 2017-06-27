@@ -549,7 +549,15 @@ struct gizmo_context
 {
     gizmo_context();
 
-    geometry_mesh geomeshes[16];             // Meshes used for drawing gizmo elements
+    struct gizmo_mesh_component
+    {
+        geometry_mesh mesh;
+        float3 base_color;
+        float3 highlight_color;
+    };
+
+    geometry_mesh geomeshes[16];
+    std::map<gizmo_mode, gizmo_mesh_component> mesh_components;
 
     struct interaction_state
     {
