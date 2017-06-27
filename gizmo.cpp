@@ -254,8 +254,16 @@ void axis_rotation_dragger(gizmo_context & g, const float3 & axis, const float3 
             float angle = std::acos(d);
             if (angle < 0.001f) { orientation = g.original_orientation; return; }
 
-            auto a = normalize(cross(arm1, arm2));
-            orientation = qmul(rotation_quat(a, angle), g.original_orientation);
+            if (g.active_state.snap_rotation)
+            {
+                auto snapped = make_rotation_quat_between_vectors_snapped(arm1, arm2, g.active_state.snap_rotation);
+                orientation = qmul(snapped, g.original_orientation);
+            }
+            else
+            {
+                auto a = normalize(cross(arm1, arm2));
+                orientation = qmul(rotation_quat(a, angle), g.original_orientation);
+            }
         }
     }
 }
@@ -281,6 +289,8 @@ void plane_translation_dragger(gizmo_context & g, const float3 & plane_normal, f
         if (t < 0) return;
 
         point = ray.origin + ray.direction * t;
+
+        if (g.active_state.snap_translation) point = snap(point, g.active_state.snap_translation);
     }
 }
 
@@ -348,8 +358,6 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
         }
         position -= g.click_offset;
     }
-
-    if (g.active_state.snap_translation) position = snap(position, g.active_state.snap_translation);
 
     if (g.has_released) g.gizmode = gizmo_mode::none;
 
@@ -469,6 +477,7 @@ void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & c
         auto scaled = g.original_scale + axis * ((s - 1.f) * dot(g.original_scale, axis));
         if (uniform) scale = float3(clamp(dot(s, scaled), 0.01f, 1000.f));
         else scale = float3(clamp(scaled.x, 0.01f, 1000.f), clamp(scaled.y, 0.01f, 1000.f), clamp(scaled.z, 0.01f, 1000.f));
+        if (g.active_state.snap_scale) scale = snap(scale, g.active_state.snap_scale);
     }
 }
 
