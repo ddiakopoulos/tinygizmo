@@ -372,8 +372,6 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     }
 }
 
-// https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
-
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
     assert(length2(orientation) > float(1e-6));
@@ -408,9 +406,9 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
     {
         switch (g.gizmode)
         {
-        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, orientation); activeAxis = { 1, 0, 0 }; break;
-        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, orientation); activeAxis = { 0, 1, 0 }; break;
-        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, orientation); activeAxis = { 0, 0, 1 }; break;
+        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, p.orientation); activeAxis = { 1, 0, 0 }; break;
+        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, p.orientation); activeAxis = { 0, 1, 0 }; break;
+        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, p.orientation); activeAxis = { 0, 0, 1 }; break;
         }
     }
 
@@ -433,10 +431,10 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
 
     // For non-local transformations, we only present one rotation ring 
     // and draw an arrow from the center of the gizmo to indicate the degree of rotation
-    if (!g.local_toggle && g.gizmode != gizmo_mode::none)
+    if (g.local_toggle == false && g.gizmode != gizmo_mode::none)
     {
         // Get the difference between quats
-        float4 change = normalize(qmul(orientation, qinv(g.original_orientation)));
+        float4 change = normalize(qmul(p.orientation, qinv(g.original_orientation)));
         float3 a = qrot(change, g.click_offset);
 
         // Create orthonormal basis for drawing the arrow
@@ -449,11 +447,13 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         gizmo_renderable r;
         r.mesh = geo;
         r.color = float3(1, 1, 1);
-        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position);
         g.drawlist.push_back(r);
-    }
 
-    // todo - qmul by new orientation for non-local
+        // Rotate original quat by the diff
+        orientation = normalize(qmul(change, orientation));
+    }
+    else if (g.local_toggle == true) orientation = p.orientation; 
 }
 
 void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)

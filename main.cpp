@@ -221,6 +221,7 @@ int main(int argc, char * argv[])
 
         //std::cout << "position: " << transform.position << std::endl;
         //std::cout << "local: " << gizmoEditor.local_toggle << std::endl;
+        std::cout << "orientation: " << transform.orientation << std::endl;
 
         gizmoEditor.draw();
 
