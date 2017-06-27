@@ -155,8 +155,7 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
     geometry_mesh mesh;
     for (int i = 0; i <= slices; ++i)
     {
-        const float angle = (static_cast<float>(i % slices) * tau / slices) + tau/8.f, c = std::cos(angle), s = std::sin(angle);
-        std::cout << angle << std::endl;
+        const float angle = (static_cast<float>(i % slices) * tau / slices) + (tau/8.f), c = std::cos(angle), s = std::sin(angle);
         const float3x2 mat = { axis, arm1 * c + arm2 * s };
         float3 n = normalize(mat.y); // TODO: Proper normals for each segment
         for (auto & p : points) mesh.vertices.push_back({ mul(mat, p), n });
@@ -373,6 +372,13 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     }
 }
 
+inline float3 transform_vector(const float4 & b, const float3 & a)
+{
+    return qmul(b, float4(a, 1)).xyz();
+}
+
+// https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
+
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
 {
     assert(length2(orientation) > float(1e-6));
@@ -395,7 +401,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         if (g.gizmode != gizmo_mode::none)
         {
             g.original_position = center;
-            g.original_orientation = orientation;
+            g.original_orientation = p.orientation; // vs. orientation
             g.click_offset = p.transform_vector(ray.origin + ray.direction * t);
             g.active[h] = true;
         }
@@ -429,11 +435,29 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         g.drawlist.push_back(r);
     }
 
-    /*
     if (!g.local_toggle && g.gizmode != gizmo_mode::none)
     {
-        std::initializer_list<float2> arrow_points = { { 0.25f, 0 },{ 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
-        auto geo = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 16, arrow_points);
+        float3 axis;
+
+        switch (g.gizmode)
+        {
+        case gizmo_mode::rotate_x: axis = { 1, 0, 0 }; break;
+        case gizmo_mode::rotate_y: axis = { 0, 1, 0 }; break;
+        case gizmo_mode::rotate_z: axis = { 0, 0, 1 }; break;
+        }
+
+        // Get the difference between quats
+        float4 change = normalize(qmul(orientation, qinv(g.original_orientation)));
+        float3 a = qrot(change, g.click_offset);
+
+        float3 zDir = normalize(axis); // forward dir
+        float3 xDir = normalize(cross(a, zDir));
+        float3 yDir = cross(zDir, xDir);
+
+        std::cout << xDir << ", " << yDir << ", " << zDir << std::endl;
+
+        std::initializer_list<float2> arrow_points = { { 0.0f, 0.f },{ 0.0f, 0.05f },{ 1.1f, 0.05f },{ 1.2f, 0.10f },{ 1.3f, 0 } };
+        auto geo = make_lathed_geometry(xDir, yDir, zDir, 16, arrow_points);
 
         gizmo_renderable r;
         r.mesh = geo;
@@ -441,7 +465,9 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
-    */
+
+    // qmul by new orientation for non-local
+
 }
 
 void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
