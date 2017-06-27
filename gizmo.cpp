@@ -372,11 +372,6 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     }
 }
 
-inline float3 transform_vector(const float4 & b, const float3 & a)
-{
-    return qmul(b, float4(a, 1)).xyz();
-}
-
 // https://blog.molecular-matters.com/2013/05/24/a-faster-quaternion-vector-multiplication/
 
 void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
@@ -408,13 +403,14 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         else g.active[h] = false;
     }
 
+    float3 activeAxis;
     if (g.active[h])
     {
         switch (g.gizmode)
         {
-        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, orientation); break;
-        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, orientation); break;
-        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, orientation); break;
+        case gizmo_mode::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, orientation); activeAxis = { 1, 0, 0 }; break;
+        case gizmo_mode::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, orientation); activeAxis = { 0, 1, 0 }; break;
+        case gizmo_mode::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, orientation); activeAxis = { 0, 0, 1 }; break;
         }
     }
 
@@ -435,29 +431,20 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         g.drawlist.push_back(r);
     }
 
+    // For non-local transformations, we only present one rotation ring 
+    // and draw an arrow from the center of the gizmo to indicate the degree of rotation
     if (!g.local_toggle && g.gizmode != gizmo_mode::none)
     {
-        float3 axis;
-
-        switch (g.gizmode)
-        {
-        case gizmo_mode::rotate_x: axis = { 1, 0, 0 }; break;
-        case gizmo_mode::rotate_y: axis = { 0, 1, 0 }; break;
-        case gizmo_mode::rotate_z: axis = { 0, 0, 1 }; break;
-        }
-
         // Get the difference between quats
         float4 change = normalize(qmul(orientation, qinv(g.original_orientation)));
         float3 a = qrot(change, g.click_offset);
 
-        float3 zDir = normalize(axis); // forward dir
-        float3 xDir = normalize(cross(a, zDir));
-        float3 yDir = cross(zDir, xDir);
+        // Create orthonormal basis for drawing the arrow
+        float3 zDir = normalize(activeAxis), xDir = normalize(cross(a, zDir)), yDir = cross(zDir, xDir);
 
-        std::cout << xDir << ", " << yDir << ", " << zDir << std::endl;
-
-        std::initializer_list<float2> arrow_points = { { 0.0f, 0.f },{ 0.0f, 0.05f },{ 1.1f, 0.05f },{ 1.2f, 0.10f },{ 1.3f, 0 } };
-        auto geo = make_lathed_geometry(xDir, yDir, zDir, 16, arrow_points);
+        // Ad-hoc geometry
+        std::initializer_list<float2> arrow_points = { { 0.0f, 0.f },{ 0.0f, 0.05f },{ 0.8f, 0.05f },{ 0.9f, 0.10f },{ 1.0f, 0 } };
+        auto geo = make_lathed_geometry(yDir, xDir, zDir, 16, arrow_points);
 
         gizmo_renderable r;
         r.mesh = geo;
@@ -466,8 +453,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         g.drawlist.push_back(r);
     }
 
-    // qmul by new orientation for non-local
-
+    // todo - qmul by new orientation for non-local
 }
 
 void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
