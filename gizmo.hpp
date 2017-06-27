@@ -556,7 +556,6 @@ struct gizmo_context
         float3 highlight_color;
     };
 
-    geometry_mesh geomeshes[16];
     std::map<gizmo_mode, gizmo_mesh_component> mesh_components;
 
     struct interaction_state
