@@ -155,10 +155,11 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
     geometry_mesh mesh;
     for (int i = 0; i <= slices; ++i)
     {
-        const float angle = static_cast<float>(i%slices) * tau / slices, c = std::cos(angle), s = std::sin(angle);
+        const float angle = (static_cast<float>(i % slices) * tau / slices) + tau/8.f, c = std::cos(angle), s = std::sin(angle);
+        std::cout << angle << std::endl;
         const float3x2 mat = { axis, arm1 * c + arm2 * s };
         float3 n = normalize(mat.y); // TODO: Proper normals for each segment
-        for (auto & p : points) mesh.vertices.push_back({ mul(mat,p), n });
+        for (auto & p : points) mesh.vertices.push_back({ mul(mat, p), n });
 
         if (i > 0)
         {
@@ -183,25 +184,23 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
 
 gizmo_context::gizmo_context()
 {
-    std::initializer_list<float2> arrow_points = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
-    std::initializer_list<float2> mace_points = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
-    std::initializer_list<float2> ring_points = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
+    std::initializer_list<float2> arrow_points  = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
+    std::initializer_list<float2> mace_points   = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
+    std::initializer_list<float2> ring_points   = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
 
-    mesh_components[gizmo_mode::translate_x]   = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f }, { 1,0,0 } };
-    mesh_components[gizmo_mode::translate_y]   = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f }, { 0,1,0 } };
-    mesh_components[gizmo_mode::translate_z]   = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1 }, { 0,0,1 } };
-    mesh_components[gizmo_mode::translate_yz]  = { make_box_geometry({ -0.01f,0.25,0.25 },{ 0.01f,0.75f,0.75f }), { 0.5f,1,1 }, { 0,1,1 } };
-    mesh_components[gizmo_mode::translate_zx]  = { make_box_geometry({ 0.25,-0.01f,0.25 },{ 0.75f,0.01f,0.75f }), { 1,0.5f,1 }, { 1,0,1 } };
-    mesh_components[gizmo_mode::translate_xy]  = { make_box_geometry({ 0.25,0.25,-0.01f },{ 0.75f,0.75f,0.01f }), { 1,1,0.5f }, { 1,1,0} };
-    mesh_components[gizmo_mode::translate_xyz] = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f },{ 1,1,1 } };
-
-    mesh_components[gizmo_mode::rotate_x] = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points), { 1, 0.5f, 0.5f }, { 1, 0, 0} };
-    mesh_components[gizmo_mode::rotate_y] = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points), { 0.5f,1,0.5f }, { 0,1,0 } };
-    mesh_components[gizmo_mode::rotate_z] = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points), { 0.5f,0.5f,1}, { 0,0,1 } };
-
-    mesh_components[gizmo_mode::scale_x] = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 4, mace_points),{ 1,0.5f,0.5f },{ 1,0,0 } };
-    mesh_components[gizmo_mode::scale_y] = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 4, mace_points),{ 0.5f,1,0.5f },{ 0,1,0 } };
-    mesh_components[gizmo_mode::scale_z] = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1 },{ 0,0,1 } };
+    mesh_components[gizmo_mode::translate_x]    = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f }, { 1,0,0 } };
+    mesh_components[gizmo_mode::translate_y]    = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f }, { 0,1,0 } };
+    mesh_components[gizmo_mode::translate_z]    = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1 }, { 0,0,1 } };
+    mesh_components[gizmo_mode::translate_yz]   = { make_box_geometry({ -0.01f,0.25,0.25 },{ 0.01f,0.75f,0.75f }), { 0.5f,1,1 }, { 0,1,1 } };
+    mesh_components[gizmo_mode::translate_zx]   = { make_box_geometry({ 0.25,-0.01f,0.25 },{ 0.75f,0.01f,0.75f }), { 1,0.5f,1 }, { 1,0,1 } };
+    mesh_components[gizmo_mode::translate_xy]   = { make_box_geometry({ 0.25,0.25,-0.01f },{ 0.75f,0.75f,0.01f }), { 1,1,0.5f }, { 1,1,0} };
+    mesh_components[gizmo_mode::translate_xyz]  = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f },{ 1,1,1 } };
+    mesh_components[gizmo_mode::rotate_x]       = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points), { 1, 0.5f, 0.5f }, { 1, 0, 0} };
+    mesh_components[gizmo_mode::rotate_y]       = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points), { 0.5f,1,0.5f }, { 0,1,0 } };
+    mesh_components[gizmo_mode::rotate_z]       = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points), { 0.5f,0.5f,1}, { 0,0,1 } };
+    mesh_components[gizmo_mode::scale_x]        = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 4, mace_points),{ 1,0.5f,0.5f },{ 1,0,0 } };
+    mesh_components[gizmo_mode::scale_y]        = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 4, mace_points),{ 0.5f,1,0.5f },{ 0,1,0 } };
+    mesh_components[gizmo_mode::scale_z]        = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1 },{ 0,0,1 } };
 }
 
 void gizmo_context::update(interaction_state & state)
@@ -397,7 +396,7 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         {
             g.original_position = center;
             g.original_orientation = orientation;
-            g.click_offset = p.transform_vector(ray.origin + ray.direction*t);
+            g.click_offset = p.transform_vector(ray.origin + ray.direction * t);
             g.active[h] = true;
         }
         else g.active[h] = false;
@@ -417,7 +416,10 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
 
     const auto model = p.matrix();
 
-    std::vector<gizmo_mode> draw_components { gizmo_mode::rotate_x, gizmo_mode::rotate_y, gizmo_mode::rotate_z };
+    std::vector<gizmo_mode> draw_components;
+    if (!g.local_toggle && g.gizmode != gizmo_mode::none) draw_components = { g.gizmode };
+    else draw_components = { gizmo_mode::rotate_x, gizmo_mode::rotate_y, gizmo_mode::rotate_z };
+
     for (auto c : draw_components)
     {
         gizmo_renderable r;
@@ -426,6 +428,20 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
         g.drawlist.push_back(r);
     }
+
+    /*
+    if (!g.local_toggle && g.gizmode != gizmo_mode::none)
+    {
+        std::initializer_list<float2> arrow_points = { { 0.25f, 0 },{ 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
+        auto geo = make_lathed_geometry({ 1,0,0 }, { 0,1,0 }, { 0,0,1 }, 16, arrow_points);
+
+        gizmo_renderable r;
+        r.mesh = geo;
+        r.color = float3(1, 1, 1);
+        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        g.drawlist.push_back(r);
+    }
+    */
 }
 
 void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
@@ -484,7 +500,8 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
 
     auto model = p.matrix();
 
-    std::vector<gizmo_mode> draw_components{ gizmo_mode::scale_x, gizmo_mode::scale_y, gizmo_mode::scale_z };
+    std::vector<gizmo_mode> draw_components { gizmo_mode::scale_x, gizmo_mode::scale_y, gizmo_mode::scale_z };
+
     for (auto c : draw_components)
     {
         gizmo_renderable r;
