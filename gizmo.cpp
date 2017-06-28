@@ -601,11 +601,11 @@ void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & ax
     }
 }
 
-void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float3 & center, float3 & scale)
+void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float4 & orientation, const float3 & center, float3 & scale)
 {
     auto h = hash_fnv1a(name);
 
-    auto p = rigid_transform(float4(0, 0, 0, 1), center);
+    auto p = rigid_transform(orientation, center);
 
     if (g.has_clicked)
     {
@@ -674,5 +674,5 @@ void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transfor
 
     if (g.impl->mode == transform_mode::translate) position_gizmo(name, *g.impl, t.orientation, t.position);
     else if (g.impl->mode == transform_mode::rotate) orientation_gizmo(name, *g.impl, t.position, t.orientation);
-    else if (g.impl->mode == transform_mode::scale) scale_gizmo(name, *g.impl, t.position, t.scale);
+    else if (g.impl->mode == transform_mode::scale) scale_gizmo(name, *g.impl, t.orientation, t.position, t.scale);
 }
