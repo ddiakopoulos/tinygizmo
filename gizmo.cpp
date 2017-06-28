@@ -2,7 +2,59 @@
 // For more information, please refer to <http://unlicense.org>
 
 #include "gizmo.hpp"
+
 #include <assert.h>
+#include <memory>       
+#include <vector>
+#include <iostream>
+#include <functional>
+#include <map>
+
+///////////////////////
+//   Utility Math    //
+///////////////////////
+
+// 32 bit Fowler–Noll–Vo Hash
+uint32_t hash_fnv1a(const std::string & str)
+{
+    static const uint32_t fnv1aBase32 = 0x811C9DC5u;
+    static const uint32_t fnv1aPrime32 = 0x01000193u;
+
+    uint32_t result = fnv1aBase32;
+
+    for (auto & c : str)
+    {
+        result ^= static_cast<uint32_t>(c);
+        result *= fnv1aPrime32;
+    }
+    return result;
+}
+
+float3 snap(const float3 & value, const float snap)
+{
+    if (snap > 0.0f) return float3(floor(value / snap) * snap);
+    return value;
+}
+
+float4 make_rotation_quat_axis_angle(const float3 & axis, float angle)
+{
+    return{ axis * std::sin(angle / 2), std::cos(angle / 2) };
+}
+
+float4 make_rotation_quat_between_vectors_snapped(const float3 & from, const float3 & to, const float angle)
+{
+    auto a = normalize(from);
+    auto b = normalize(to);
+    auto snappedAcos = std::floor(std::acos(dot(a, b)) / angle) * angle;
+    return make_rotation_quat_axis_angle(normalize(cross(a, b)), snappedAcos);
+}
+
+template<typename T> T clamp(const T & val, const T & min, const T & max) { return std::min(std::max(val, min), max); }
+
+struct ray { float3 origin, direction; };
+inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
+inline ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
+inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
 
 /////////////////////////////////////////
 // Ray-Geometry Intersection Functions //
@@ -38,7 +90,7 @@ bool intersect_ray_triangle(const ray & ray, const float3 & v0, const float3 & v
     return true;
 }
 
-bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit_t, int * hit_tri)
+bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit_t)
 {
     float best_t = std::numeric_limits<float>::infinity(), t;
     int best_tri = -1;
@@ -52,7 +104,6 @@ bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit
     }
     if (best_tri == -1) return false;
     if (hit_t) *hit_t = best_t;
-    if (hit_tri) *hit_tri = best_tri;
     return true;
 }
 
@@ -181,7 +232,37 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
 // Gizmo Context Implementation //
 //////////////////////////////////
 
-gizmo_context::gizmo_context()
+struct gizmo_context::gizmo_context_impl
+{
+    gizmo_context * ctx;
+
+    gizmo_context_impl(gizmo_context * ctx);
+
+    std::map<gizmo_mode, gizmo_mesh_component> mesh_components;
+    std::vector<gizmo_renderable> drawlist;
+
+    gizmo_mode gizmode;                     // Mode that the gizmo is currently in
+    transform_mode mode{ transform_mode::translate };
+
+    interaction_state active_state, last_state;
+    float3 original_position;               // Original position of an object being manipulated with a gizmo
+    float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
+    float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
+    float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
+    bool local_toggle{ false };             // State to describe if the gizmo should use transform-local math
+    bool has_clicked{ false };              // State to describe if the user has pressed the left mouse button during the last frame
+    bool has_released{ false };             // State to describe if the user has released the left mouse button during the last frame
+
+    ray get_ray_from_cursor(const camera_parameters & cam) const { return get_ray_from_pixel(active_state.cursor, active_state.viewport, cam); }
+
+    std::map<uint32_t, bool> active;
+
+    // Public methods
+    void update(interaction_state & state); 
+    void draw();
+};
+
+gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx(ctx)
 {
     std::initializer_list<float2> arrow_points  = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::initializer_list<float2> mace_points   = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
@@ -202,7 +283,7 @@ gizmo_context::gizmo_context()
     mesh_components[gizmo_mode::scale_z]        = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1 },{ 0,0,1 } };
 }
 
-void gizmo_context::update(interaction_state & state)
+void gizmo_context::gizmo_context_impl::update(interaction_state & state)
 {
     active_state = state;
     local_toggle = (last_state.hotkey_local == false && active_state.hotkey_local == true) ? !local_toggle : local_toggle;
@@ -211,9 +292,9 @@ void gizmo_context::update(interaction_state & state)
     drawlist.clear();
 }
 
-void gizmo_context::draw()
+void gizmo_context::gizmo_context_impl::draw()
 {
-    if (render)
+    if (ctx->render)
     {
         geometry_mesh r; // Combine all gizmo sub-meshes into one super-mesh
         for (auto & m : drawlist)
@@ -223,7 +304,7 @@ void gizmo_context::draw()
             for (auto & f : m.mesh.triangles) r.triangles.push_back({numVerts + f.x, numVerts + f.y, numVerts + f.z });
             for (; it != r.vertices.end(); ++it) it->color = m.color; // Take the color and shove it into a per-vertex attribute
         }
-        render(r);
+        ctx->render(r);
     }
     last_state = active_state;
 }
@@ -232,7 +313,7 @@ void gizmo_context::draw()
 // Private Gizmo Implementations //
 ///////////////////////////////////
 
-void axis_rotation_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float4 & orientation)
+void axis_rotation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float4 & orientation)
 {
     if (g.active_state.mouse_left)
     {
@@ -268,7 +349,7 @@ void axis_rotation_dragger(gizmo_context & g, const float3 & axis, const float3 
     }
 }
 
-void plane_translation_dragger(gizmo_context & g, const float3 & plane_normal, float3 & point)
+void plane_translation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & plane_normal, float3 & point)
 {
     // Mouse clicked
     if (g.has_clicked) g.original_position = point; 
@@ -294,7 +375,7 @@ void plane_translation_dragger(gizmo_context & g, const float3 & plane_normal, f
     }
 }
 
-void axis_translation_dragger(gizmo_context & g, const float3 & axis, float3 & point)
+void axis_translation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, float3 & point)
 {
     if (g.active_state.mouse_left)
     {
@@ -312,7 +393,7 @@ void axis_translation_dragger(gizmo_context & g, const float3 & axis, float3 & p
 // Public "Immediate-Mode" Gizmo Implementations //
 ///////////////////////////////////////////////////
 
-void position_gizmo(const std::string & name, gizmo_context & g, const float4 & orientation, float3 & position)
+void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float4 & orientation, float3 & position)
 {
     auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), position);
 
@@ -380,7 +461,7 @@ void position_gizmo(const std::string & name, gizmo_context & g, const float4 & 
     }
 }
 
-void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation)
+void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float3 & center, float4 & orientation)
 {
     assert(length2(orientation) > float(1e-6));
 
@@ -459,12 +540,12 @@ void orientation_gizmo(const std::string & name, gizmo_context & g, const float3
         g.drawlist.push_back(r);
 
         // Rotate original quat by the diff
-        orientation = normalize(qmul(change, orientation));
+        orientation = normalize(qmul(change, p.orientation));
     }
     else if (g.local_toggle == true) orientation = p.orientation; 
 }
 
-void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
+void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
 {
     if (g.active_state.mouse_left)
     {
@@ -481,7 +562,7 @@ void axis_scale_dragger(gizmo_context & g, const float3 & axis, const float3 & c
     }
 }
 
-void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float3 & scale)
+void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float3 & center, float3 & scale)
 {
     auto h = hash_fnv1a(name);
 
@@ -533,16 +614,25 @@ void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & cen
     }
 }
 
+//////////////////////////////////
+// Public Gizmo Implementations //
+//////////////////////////////////
+
+gizmo_context::gizmo_context() { impl.reset(new gizmo_context_impl(this)); };
+gizmo_context::~gizmo_context() { }
+void gizmo_context::update(interaction_state & state) { impl->update(state); }
+void gizmo_context::draw() { impl->draw(); }
+
 void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t)
 {
-    if (g.active_state.hotkey_ctrl == true)
+    if (g.impl->active_state.hotkey_ctrl == true)
     {
-        if (g.last_state.hotkey_translate == false && g.active_state.hotkey_translate == true) g.drawmode = draw_mode::translate;
-        else if (g.last_state.hotkey_rotate == false && g.active_state.hotkey_rotate == true) g.drawmode = draw_mode::rotate;
-        else if (g.last_state.hotkey_scale == false && g.active_state.hotkey_scale == true) g.drawmode = draw_mode::scale;
+        if (g.impl->last_state.hotkey_translate == false && g.impl->active_state.hotkey_translate == true) g.impl->mode = transform_mode::translate;
+        else if (g.impl->last_state.hotkey_rotate == false && g.impl->active_state.hotkey_rotate == true) g.impl->mode = transform_mode::rotate;
+        else if (g.impl->last_state.hotkey_scale == false && g.impl->active_state.hotkey_scale == true) g.impl->mode = transform_mode::scale;
     }
 
-    if (g.drawmode == draw_mode::translate) position_gizmo(name, g, t.orientation, t.position);
-    else if (g.drawmode == draw_mode::rotate) orientation_gizmo(name, g, t.position, t.orientation);
-    else if (g.drawmode == draw_mode::scale) scale_gizmo(name, g, t.position, t.scale);
+    if (g.impl->mode == transform_mode::translate) position_gizmo(name, *g.impl, t.orientation, t.position);
+    else if (g.impl->mode == transform_mode::rotate) orientation_gizmo(name, *g.impl, t.position, t.orientation);
+    else if (g.impl->mode == transform_mode::scale) scale_gizmo(name, *g.impl, t.position, t.scale);
 }

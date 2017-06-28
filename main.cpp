@@ -90,7 +90,7 @@ int main(int argc, char * argv[])
 
     gizmoEditorMesh.reset(new GlMesh());
 
-    gizmo_context::interaction_state gis;
+    interaction_state gis;
     gizmo_context gizmoEditor;
 
     gizmoEditor.render = [&](const geometry_mesh & r)

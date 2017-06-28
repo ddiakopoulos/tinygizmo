@@ -3,34 +3,25 @@
 
 #pragma once
 
-#ifndef gizmin_hpp
-#define gizmin_hpp
+#ifndef gl_gizmo_hpp
+#define gl_gizmo_hpp
 
 #include <cmath>        // For various unary math functions, such as std::sqrt
 #include <cstdlib>      // To resolve std::abs ambiguity on clang
-#include <cstdint>      // For implementing namespace linalg::aliases
 #include <array>        // For std::array, used in the relational operator overloads
 #include <limits>       // For std::numeric_limits/epsilon
-#include <memory>
-#include <vector>
-#include <iostream>
-#include <functional>
-#include <map>
-
-// todo
-// [ ] snapping (linear + angular)
-// [X] scale gizmo
-// [X] multi-gizmo
-// [ ] local vs global
-// [ ] util for quitting gizmo edit - esc key (undo stack?!)
-// [ ] arbitrary coordinate systems
+#include <functional>   // For std::function callbacks
+#include <memory>       // For std::unique_ptr
+#include <vector>       // For ... 
 
 // Visual Studio versions prior to 2015 lack constexpr support
 #if defined(_MSC_VER) && _MSC_VER < 1900 && !defined(constexpr)
     #define constexpr
 #endif
 
-// https://raw.githubusercontent.com/sgorsten/linalg/master/linalg.h
+// This library includes an inline version of linalg.h (https://github.com/sgorsten/linalg) in a separate minalg
+// namespace. This is to reduce the number of files in this library to 2, without a separate header specifically
+// for 3d math. 
 namespace minalg
 {
     // Small, fixed-length vector type, consisting of exactly M elements of type T, and presumed to be a column-vector unless otherwise noted
@@ -379,7 +370,7 @@ namespace minalg
 
 } // end namespace minalg
 
-// Definitions of functions too long to be defined inline
+// Definitions of linalg functions too long to be defined inline
 template<class T> minalg::mat<T, 3, 3> minalg::adjugate(const mat<T, 3, 3> & a)
 {
     return{ { a.y.y*a.z.z - a.z.y*a.y.z, a.z.y*a.x.z - a.x.y*a.z.z, a.x.y*a.y.z - a.y.y*a.x.z },
@@ -415,32 +406,26 @@ template<class T> T minalg::determinant(const mat<T, 4, 4> & a)
         + a.x.w*(a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z);
 }
 
-static const minalg::float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
-static const minalg::float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
-
-template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
-template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
-template<class T> std::ostream & operator << (std::ostream & a, const minalg::vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
-template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
-template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
-
 using namespace minalg;
+
+//////////////////////////
+//   Linalg Utilities   //
+//////////////////////////
+
+static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
+static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
+
+template<class T> std::ostream & operator << (std::ostream & a, vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
 
 ///////////////////////
 //   Utility Math    //
 ///////////////////////
 
 const float tau = 6.28318530718f;
-
-struct rect
-{
-    int x0, y0, x1, y1;
-    int width() const { return x1 - x0; }
-    int height() const { return y1 - y0; }
-    int2 dims() const { return{ width(), height() }; }
-    float aspect_ratio() const { return (float)width() / height(); }
-    template<class T> bool contains(const minalg::vec<T, 2> & point) const { return point.x >= x0 && point.y >= y0 && point.x < x1 && point.y < y1; }
-};
 
 struct rigid_transform
 {
@@ -462,61 +447,15 @@ struct rigid_transform
     bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
 };
 
-// 32 bit Fowler–Noll–Vo Hash
-inline uint32_t hash_fnv1a(const std::string & str)
+struct rect
 {
-    static const uint32_t fnv1aBase32 = 0x811C9DC5u;
-    static const uint32_t fnv1aPrime32 = 0x01000193u;
-
-    uint32_t result = fnv1aBase32;
-
-    for (auto & c : str)
-    {
-        result ^= static_cast<uint32_t>(c);
-        result *= fnv1aPrime32;
-    }
-    return result;
-}
-
-inline float3 snap(const float3 & value, const float snap) 
-{
-    if (snap > 0.0f) return float3(floor(value / snap) * snap);
-    return value;
-}
-
-inline float4 make_rotation_quat_axis_angle(const float3 & axis, float angle)
-{
-    return { axis * std::sin(angle / 2), std::cos(angle / 2) };
-}
-
-inline float4 make_rotation_quat_between_vectors_snapped(const float3 & from, const float3 & to, const float angle)
-{
-    auto a = normalize(from);
-    auto b = normalize(to);
-    auto snappedAcos = std::floor(std::acos(dot(a, b)) / angle) * angle;
-    return make_rotation_quat_axis_angle(normalize(cross(a, b)), snappedAcos);
-}
-
-template<typename T> T clamp(const T & val, const T & min, const T & max) { return std::min(std::max(val, min), max); }
-
-struct ray { float3 origin, direction; };
-struct geometry_vertex { float3 position, normal, color; };
-struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
-struct gizmo_renderable { geometry_mesh mesh; float3 color; };
-
-inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
-inline ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
-inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
-
-bool intersect_ray_plane(const ray & ray, const float4 & plane, float * hit_t = 0);
-bool intersect_ray_triangle(const ray & ray, const float3 & v0, const float3 & v1, const float3 & v2, float * hit_t = 0);
-bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit_t = 0, int * hit_tri = 0);
-
-geometry_mesh make_box_geometry(const float3 & min_bounds, const float3 & max_bounds);
-geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices);
-geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices, std::initializer_list<float2> points);
-
-void compute_normals(geometry_mesh & mesh);
+    int x0, y0, x1, y1;
+    int width() const { return x1 - x0; }
+    int height() const { return y1 - y0; }
+    int2 dims() const { return{ width(), height() }; }
+    float aspect_ratio() const { return (float)width() / height(); }
+    template<class T> bool contains(const minalg::vec<T, 2> & point) const { return point.x >= x0 && point.y >= y0 && point.x < x1 && point.y < y1; }
+};
 
 struct camera_parameters
 {
@@ -525,7 +464,10 @@ struct camera_parameters
     float4 orientation;
 };
 
-ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam);
+struct geometry_vertex { float3 position, normal, color; };
+struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
+struct gizmo_renderable { geometry_mesh mesh; float3 color; };
+struct gizmo_mesh_component { geometry_mesh mesh; float3 base_color, highlight_color; };
 
 enum class gizmo_mode 
 { 
@@ -538,76 +480,45 @@ enum class gizmo_mode
     scale_xyz 
 };
 
-enum class draw_mode
+enum class transform_mode
 {
     translate,
     rotate,
     scale
 };
 
+struct interaction_state
+{
+    bool mouse_left{ false };
+    bool hotkey_translate{ false };
+    bool hotkey_rotate{ false };
+    bool hotkey_scale{ false };
+    bool hotkey_local{ false };
+    bool hotkey_ctrl{ false };
+    float snap_translation{ 0.f };      // ...
+    float snap_rotation{ 0.f };         // ...
+    float snap_scale{ 0.f };            // ...
+    float timestep{ 0.f };              // Timestep between the last frame and this one (unused)
+    rect viewport;                      // Current 3d viewport used to render the scene
+    float2 cursor;                      // Current cursor location in window coordinates
+    camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
+};
+
 struct gizmo_context
 {
+    struct gizmo_context_impl;
+    std::unique_ptr<gizmo_context_impl> impl;
     gizmo_context();
-
-    struct gizmo_mesh_component
-    {
-        geometry_mesh mesh;
-        float3 base_color;
-        float3 highlight_color;
-    };
-
-    std::map<gizmo_mode, gizmo_mesh_component> mesh_components;
-
-    struct interaction_state
-    {
-        bool mouse_left{ false };
-        bool hotkey_translate{ false };
-        bool hotkey_rotate{ false };
-        bool hotkey_scale{ false };
-        bool hotkey_local{ false };
-        bool hotkey_ctrl{ false };
-        float snap_translation{ 0.f };      // ...
-        float snap_rotation{ 0.f };         // ...
-        float snap_scale{ 0.f };            // ...
-        float timestep{ 0.f };              // Timestep between the last frame and this one (unused)
-        rect viewport;                      // Current 3d viewport used to render the scene
-        float2 cursor;                      // Current cursor location in window coordinates
-        camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
-    };
-
-    std::vector<gizmo_renderable> drawlist;
-
-    interaction_state active_state, last_state;
-
-    gizmo_mode gizmode;                     // Mode that the gizmo is currently in
-    draw_mode drawmode{draw_mode::translate };
-
-    float3 original_position;               // Original position of an object being manipulated with a gizmo
-    float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
-    float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
-    float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
-
-    bool local_toggle{ false };             // ...
-    bool has_clicked{ false };              // ...
-    bool has_released{ false };             // ...
-
-    void update(interaction_state & state); // Clear geometry buffer and update interaction data
-    void draw();                            // Draw
-
-    std::function<void(const geometry_mesh & r)> render;           // Callback to render the gizmo meshes
-
-    ray get_ray_from_cursor(const camera_parameters & cam) const { return get_ray_from_pixel(active_state.cursor, active_state.viewport, cam); }
-
-    std::map<uint32_t, bool> active;
+    ~gizmo_context();
+    void update(interaction_state & state);              // Clear `geometry_mesh` buffer and update internal `interaction_state_` data
+    void draw();                                         // Trigger a render callback per call to `update(...)`
+    std::function<void(const geometry_mesh & r)> render; // Callback to render the gizmo meshes
 };
 
 ////////////////////////////
 //   Gizmo Definitions    //
 ////////////////////////////
 
-void position_gizmo(const std::string & name, gizmo_context & g, const float4 & orientation, float3 & position);
-void orientation_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float4 & orientation);
-void scale_gizmo(const std::string & name, gizmo_context & g, const float3 & center, float3 & scale);
 void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
 
-#endif // end gizmin_hpp
+#endif // end gl_gizmo_hpp
