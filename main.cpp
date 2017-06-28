@@ -118,6 +118,9 @@ int main(int argc, char * argv[])
     gizmo_application_state gizmo_state;
     gizmo_context gizmo_ctx;
 
+    geometry_mesh cube = make_cube(float3(-0.5), float3(0.5));
+    upload_mesh(cube, cubeMesh.get());
+
     gizmo_ctx.render = [&](const geometry_mesh & r)
     {
         upload_mesh(r, gizmoEditorMesh.get());
@@ -210,9 +213,6 @@ int main(int argc, char * argv[])
 
         glViewport(0, 0, windowSize.x, windowSize.y);
 
-        glEnable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
-
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  
 
@@ -226,6 +226,15 @@ int main(int argc, char * argv[])
         gizmo_state.cam.yfov = cam.yfov;
         gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
+
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_DEPTH_TEST);
+
+        auto cubeModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
+        draw_mesh(wireframeShader.get(), cubeMesh.get(), cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), cubeModelMatrix);
+
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
 
         gizmo_ctx.update(gizmo_state);
         transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);
