@@ -166,9 +166,6 @@ int main(int argc, char * argv[])
         }
     };
 
-    float3 gp = float3(0, 0, 0);
-    float4 ori = float4(0, 0, 0, 1);
-    float3 scale = float3(1, 1, 1);
     rigid_transform transform;
 
     auto t0 = std::chrono::high_resolution_clock::now();
@@ -212,17 +209,7 @@ int main(int argc, char * argv[])
         gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
         gizmoEditor.update(gis);
-
-        //position_gizmo("position-example-gizmo", gizmoEditor, gp);
-        //orientation_gizmo("orientation-example-gizmo", gizmoEditor, gp, ori);
-        //scale_gizmo("scale-example-gizmo", gizmoEditor, gp, scale);
-
         transform_gizmo("xform-example-gizmo", gizmoEditor, transform);
-
-        //std::cout << "position: " << transform.position << std::endl;
-        //std::cout << "local: " << gizmoEditor.local_toggle << std::endl;
-        std::cout << "orientation: " << transform.orientation << std::endl;
-
         gizmoEditor.draw();
 
         gl_check_error(__FILE__, __LINE__);
