@@ -115,13 +115,13 @@ int main(int argc, char * argv[])
     gizmoEditorMesh.reset(new GlMesh());
     cubeMesh.reset(new GlMesh());
 
-    interaction_state the_interaction_state;
-    gizmo_context the_gizmo_context;
+    gizmo_application_state gizmo_state;
+    gizmo_context gizmo_ctx;
 
-    the_gizmo_context.render = [&](const geometry_mesh & r)
+    gizmo_ctx.render = [&](const geometry_mesh & r)
     {
         upload_mesh(r, gizmoEditorMesh.get());
-        draw_mesh(wireframeShader.get(), gizmoEditorMesh.get(), cam.get_viewproj_matrix({ 0, 0, windowSize.x, windowSize.y }), identity4x4);
+        draw_mesh(wireframeShader.get(), gizmoEditorMesh.get(), cam.get_viewproj_matrix((float) windowSize.x / (float) windowSize.y), identity4x4);
     };
 
     win->on_char = [&](int codepoint)
@@ -157,36 +157,31 @@ int main(int argc, char * argv[])
     {
         if (event.type == InputEvent::KEY)
         {
-            if (event.value[0] == GLFW_KEY_L) the_interaction_state.hotkey_local = event.is_down();
-            if (event.value[0] == GLFW_KEY_T) the_interaction_state.hotkey_translate = event.is_down();
-            if (event.value[0] == GLFW_KEY_R) the_interaction_state.hotkey_rotate = event.is_down();
-            if (event.value[0] == GLFW_KEY_S) the_interaction_state.hotkey_scale = event.is_down();
-            if (event.value[0] == GLFW_KEY_LEFT_CONTROL) the_interaction_state.hotkey_ctrl = event.is_down();
-
+            if (event.value[0] == GLFW_KEY_LEFT_CONTROL) gizmo_state.hotkey_ctrl = event.is_down();
+            if (event.value[0] == GLFW_KEY_L) gizmo_state.hotkey_local = event.is_down();
+            if (event.value[0] == GLFW_KEY_T) gizmo_state.hotkey_translate = event.is_down();
+            if (event.value[0] == GLFW_KEY_R) gizmo_state.hotkey_rotate = event.is_down();
+            if (event.value[0] == GLFW_KEY_S) gizmo_state.hotkey_scale = event.is_down();
             if (event.value[0] == GLFW_KEY_W) bf = event.is_down();
             if (event.value[0] == GLFW_KEY_A) bl = event.is_down();
             if (event.value[0] == GLFW_KEY_S) bb = event.is_down();
             if (event.value[0] == GLFW_KEY_D) br = event.is_down();
-
         }
         else if (event.type == InputEvent::MOUSE)
         {
-            the_interaction_state.mouse_left = event.is_down();
-
+            gizmo_state.mouse_left = event.is_down();
             if (event.value[0] == GLFW_MOUSE_BUTTON_LEFT) ml = event.is_down();
             if (event.value[0] == GLFW_MOUSE_BUTTON_RIGHT) mr = event.is_down();
         }
         else if (event.type == InputEvent::CURSOR)
         {
-            the_interaction_state.cursor = minalg::float2(event.cursor.x, event.cursor.y);
-
-            auto deltaCursorMotion = the_interaction_state.cursor - lastCursor;
+            gizmo_state.cursor = minalg::float2(event.cursor.x, event.cursor.y);
+            auto deltaCursorMotion = gizmo_state.cursor - lastCursor;
             if (mr)
             {
                 cam.yaw -= deltaCursorMotion.x * 0.01f;
                 cam.pitch -= deltaCursorMotion.y * 0.01f;
             }
-
             lastCursor = minalg::float2(event.cursor.x, event.cursor.y);
         }
     };
@@ -225,17 +220,16 @@ int main(int argc, char * argv[])
 
         // Gizmo input interaction state populated via win->on_input(...) callback above.
         // Now populate other app parameters: 
-        the_interaction_state.viewport = rect{0, 0, windowSize.x, windowSize.y};
-        the_interaction_state.timestep = timestep;
-        the_interaction_state.cam.near_clip = cam.near_clip;
-        the_interaction_state.cam.far_clip = cam.far_clip;
-        the_interaction_state.cam.yfov = cam.yfov;
-        the_interaction_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
-        the_interaction_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
+        gizmo_state.viewport_size = minalg::float2(windowSize.x, windowSize.y);
+        gizmo_state.cam.near_clip = cam.near_clip;
+        gizmo_state.cam.far_clip = cam.far_clip;
+        gizmo_state.cam.yfov = cam.yfov;
+        gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
+        gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
-        the_gizmo_context.update(the_interaction_state);
-        transform_gizmo("xform-example-gizmo", the_gizmo_context, transform);
-        the_gizmo_context.draw();
+        gizmo_ctx.update(gizmo_state);
+        transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);
+        gizmo_ctx.draw();
 
         gl_check_error(__FILE__, __LINE__);
 

@@ -425,8 +425,6 @@ template<class T, int N> std::ostream & operator << (std::ostream & a, const mat
 //   Utility Math    //
 ///////////////////////
 
-const float tau = 6.28318530718f;
-
 struct rigid_transform
 {
     float3  position{ 0,0,0 };
@@ -456,19 +454,10 @@ struct camera_parameters
 
 struct geometry_vertex { float3 position, normal, color; };
 struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
-struct gizmo_renderable { geometry_mesh mesh; float3 color; };
-struct gizmo_mesh_component { geometry_mesh mesh; float3 base_color, highlight_color; };
 
-enum class gizmo_mode 
-{ 
-    none, 
-    translate_x, translate_y, translate_z, 
-    translate_yz, translate_zx, translate_xy, 
-    translate_xyz, 
-    rotate_x, rotate_y, rotate_z, 
-    scale_x, scale_y, scale_z, 
-    scale_xyz 
-};
+///////////////
+//   Gizmo   //
+///////////////
 
 enum class transform_mode
 {
@@ -477,7 +466,7 @@ enum class transform_mode
     scale
 };
 
-struct interaction_state
+struct gizmo_application_state
 {
     bool mouse_left{ false };
     bool hotkey_translate{ false };
@@ -497,16 +486,19 @@ struct gizmo_context
 {
     struct gizmo_context_impl;
     std::unique_ptr<gizmo_context_impl> impl;
+
     gizmo_context();
     ~gizmo_context();
-    void update(interaction_state & state);              // Clear `geometry_mesh` buffer and update internal `interaction_state_` data
-    void draw();                                         // Trigger a render callback per call to `update(...)`
-    std::function<void(const geometry_mesh & r)> render; // Callback to render the gizmo meshes
+
+    void update(const gizmo_application_state & state);     // Clear geometry buffer and update internal `gizmo_application_state` data
+    void draw();                                            // Trigger a render callback per call to `update(...)`
+    transform_mode get_mode() const;                        // Return the active mode being used by `transform_gizmo(...)`
+    std::function<void(const geometry_mesh & r)> render;    // Callback to render the gizmo meshes
 };
 
-////////////////////////////
-//   Gizmo Definitions    //
-////////////////////////////
+///////////////////////////
+//   Gizmo Definitions   //
+///////////////////////////
 
 void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
 

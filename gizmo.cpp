@@ -14,6 +14,8 @@
 //   Utility Math    //
 ///////////////////////
 
+static const float tau = 6.28318530718f;
+
 // 32 bit Fowler–Noll–Vo Hash
 uint32_t hash_fnv1a(const std::string & str)
 {
@@ -50,6 +52,9 @@ float4 make_rotation_quat_between_vectors_snapped(const float3 & from, const flo
 }
 
 template<typename T> T clamp(const T & val, const T & min, const T & max) { return std::min(std::max(val, min), max); }
+
+struct gizmo_mesh_component { geometry_mesh mesh; float3 base_color, highlight_color; };
+struct gizmo_renderable { geometry_mesh mesh; float3 color; };
 
 struct ray { float3 origin, direction; };
 inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
@@ -241,6 +246,17 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
 // Gizmo Context Implementation //
 //////////////////////////////////
 
+enum class gizmo_mode
+{
+    none,
+    translate_x, translate_y, translate_z,
+    translate_yz, translate_zx, translate_xy,
+    translate_xyz,
+    rotate_x, rotate_y, rotate_z,
+    scale_x, scale_y, scale_z,
+    scale_xyz
+};
+
 struct gizmo_context::gizmo_context_impl
 {
     gizmo_context * ctx;
@@ -249,11 +265,10 @@ struct gizmo_context::gizmo_context_impl
 
     std::map<gizmo_mode, gizmo_mesh_component> mesh_components;
     std::vector<gizmo_renderable> drawlist;
-
-    gizmo_mode gizmode;                     // Mode that the gizmo is currently in
+    gizmo_mode gizmode;
     transform_mode mode{ transform_mode::translate };
 
-    interaction_state active_state, last_state;
+    gizmo_application_state active_state, last_state;
     float3 original_position;               // Original position of an object being manipulated with a gizmo
     float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
     float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
@@ -267,14 +282,9 @@ struct gizmo_context::gizmo_context_impl
     std::map<uint32_t, bool> active;
 
     // Public methods
-    void update(interaction_state & state); 
+    void update(const gizmo_application_state & state);
     void draw();
 };
-
-ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
-{
-    return get_ray_from_pixel(active_state.cursor, { 0, 0, active_state.viewport_size.x, active_state.viewport_size.y }, cam);
-}
 
 gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx(ctx)
 {
@@ -296,7 +306,12 @@ gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx
     mesh_components[gizmo_mode::scale_z]        = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1 },{ 0,0,1 } };
 }
 
-void gizmo_context::gizmo_context_impl::update(interaction_state & state)
+ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
+{
+    return get_ray_from_pixel(active_state.cursor, { 0, 0, (int) active_state.viewport_size.x, (int) active_state.viewport_size.y }, cam);
+}
+
+void gizmo_context::gizmo_context_impl::update(const gizmo_application_state & state)
 {
     active_state = state;
     local_toggle = (last_state.hotkey_local == false && active_state.hotkey_local == true) ? !local_toggle : local_toggle;
@@ -537,7 +552,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     else if (g.local_toggle == false && g.gizmode != gizmo_mode::none)
     {
         // Get the difference between quats
-        float4 change = normalize(qmul(p.orientation, qconj(g.original_orientation)));
+        float4 change = normalize(qmul(p.orientation, qinv(g.original_orientation)));
         float3 a = qrot(change, g.click_offset);
 
         // Create orthonormal basis for drawing the arrow
@@ -633,8 +648,9 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
 
 gizmo_context::gizmo_context() { impl.reset(new gizmo_context_impl(this)); };
 gizmo_context::~gizmo_context() { }
-void gizmo_context::update(interaction_state & state) { impl->update(state); }
+void gizmo_context::update(const gizmo_application_state & state) { impl->update(state); }
 void gizmo_context::draw() { impl->draw(); }
+transform_mode gizmo_context::get_mode() const { return impl->mode; }
 
 void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t)
 {
