@@ -6,7 +6,11 @@ An included example illustrates a rendering implementation using GLFW with an Op
 
 # Motivation
 
-This project was born out of frustrations with other immediate-mode gizmo implementations. Instead of transform matrices and euler angles, the library exposes a `rigid_transform` struct consisting of a position, rotation quaternion, and scale. 
+This project was born out of frustrations with other immediate-mode gizmo implementations. Instead of transform matrices and euler angles, the library exposes a `rigid_transform` struct consisting of a position, rotation quaternion, and scale.
+
+# Features
+* Global/local transform modes for the translational and rotational gizmos
+* Snap-to-unit (both linear and angular)
 
 # Attribution
 

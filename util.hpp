@@ -97,17 +97,9 @@ public:
 
     Window(int width, int height, const char * title)
     {
-        if (glfwInit() == GL_FALSE)
-        {
-            throw std::runtime_error("glfwInit() failed");
-        }
-
+        if (glfwInit() == GL_FALSE) throw std::runtime_error("glfwInit() failed");
         window = glfwCreateWindow(width, height, title, nullptr, nullptr);
-
-        if (window == nullptr)
-        {
-            throw std::runtime_error("glfwCreateWindow() failed");
-        }
+        if (!window) throw std::runtime_error("glfwCreateWindow() failed");
 
         glfwMakeContextCurrent(window);
 
