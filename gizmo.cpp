@@ -519,7 +519,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         if (g.interaction_mode != interact::none)
         {
             g.original_position = center;
-            g.original_orientation = p.orientation; // vs. orientation
+            g.original_orientation = p.orientation;
             g.click_offset = p.transform_vector(ray.origin + ray.direction * t);
             g.active[h] = true;
         }
@@ -578,7 +578,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         // Rotate original quat by the diff
         orientation = normalize(qmul(change, p.orientation));
     }
-    else if (g.local_toggle == true)
+    else if (g.local_toggle == true && g.interaction_mode != interact::none)
     {
         orientation = p.orientation;
     }
