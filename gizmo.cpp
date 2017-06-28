@@ -56,6 +56,15 @@ inline ray transform(const rigid_transform & p, const ray & r) { return{ p.trans
 inline ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
 inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
 
+struct rect
+{
+    int x0, y0, x1, y1;
+    int width() const { return x1 - x0; }
+    int height() const { return y1 - y0; }
+    int2 dims() const { return{ width(), height() }; }
+    float aspect_ratio() const { return (float)width() / height(); }
+};
+
 /////////////////////////////////////////
 // Ray-Geometry Intersection Functions //
 /////////////////////////////////////////
@@ -253,7 +262,7 @@ struct gizmo_context::gizmo_context_impl
     bool has_clicked{ false };              // State to describe if the user has pressed the left mouse button during the last frame
     bool has_released{ false };             // State to describe if the user has released the left mouse button during the last frame
 
-    ray get_ray_from_cursor(const camera_parameters & cam) const { return get_ray_from_pixel(active_state.cursor, active_state.viewport, cam); }
+    ray get_ray_from_cursor(const camera_parameters & cam) const;
 
     std::map<uint32_t, bool> active;
 
@@ -262,12 +271,16 @@ struct gizmo_context::gizmo_context_impl
     void draw();
 };
 
+ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
+{
+    return get_ray_from_pixel(active_state.cursor, { 0, 0, active_state.viewport_size.x, active_state.viewport_size.y }, cam);
+}
+
 gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx(ctx)
 {
     std::initializer_list<float2> arrow_points  = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::initializer_list<float2> mace_points   = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
     std::initializer_list<float2> ring_points   = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
-
     mesh_components[gizmo_mode::translate_x]    = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f }, { 1,0,0 } };
     mesh_components[gizmo_mode::translate_y]    = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f }, { 0,1,0 } };
     mesh_components[gizmo_mode::translate_z]    = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1 }, { 0,0,1 } };
@@ -389,9 +402,9 @@ void axis_translation_dragger(gizmo_context::gizmo_context_impl & g, const float
     }
 }
 
-///////////////////////////////////////////////////
-// Public "Immediate-Mode" Gizmo Implementations //
-///////////////////////////////////////////////////
+///////////////////////////////
+//   Gizmo Implementations   //
+///////////////////////////////
 
 void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float4 & orientation, float3 & position)
 {
@@ -520,10 +533,11 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
     // For non-local transformations, we only present one rotation ring 
     // and draw an arrow from the center of the gizmo to indicate the degree of rotation
-    if (g.local_toggle == false && g.gizmode != gizmo_mode::none)
+    if (g.local_toggle == true) orientation = p.orientation;
+    else if (g.local_toggle == false && g.gizmode != gizmo_mode::none)
     {
         // Get the difference between quats
-        float4 change = normalize(qmul(p.orientation, qinv(g.original_orientation)));
+        float4 change = normalize(qmul(p.orientation, qconj(g.original_orientation)));
         float3 a = qrot(change, g.click_offset);
 
         // Create orthonormal basis for drawing the arrow
@@ -542,7 +556,6 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         // Rotate original quat by the diff
         orientation = normalize(qmul(change, p.orientation));
     }
-    else if (g.local_toggle == true) orientation = p.orientation; 
 }
 
 void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)

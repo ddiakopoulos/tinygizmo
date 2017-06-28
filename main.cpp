@@ -39,6 +39,30 @@ constexpr const char basic_wireframe_frag[] = R"(#version 330
 //   Main Application   //
 //////////////////////////
 
+geometry_mesh make_cube(const float3 & min_bounds, const float3 & max_bounds)
+{
+    const auto a = min_bounds, b = max_bounds;
+    geometry_mesh mesh;
+    mesh.vertices = {
+        { { a.x, a.y, a.z },{ -1,0,0 } },{ { a.x, a.y, b.z },{ -1,0,0 } },
+        { { a.x, b.y, b.z },{ -1,0,0 } },{ { a.x, b.y, a.z },{ -1,0,0 } },
+        { { b.x, a.y, a.z },{ +1,0,0 } },{ { b.x, b.y, a.z },{ +1,0,0 } },
+        { { b.x, b.y, b.z },{ +1,0,0 } },{ { b.x, a.y, b.z },{ +1,0,0 } },
+        { { a.x, a.y, a.z },{ 0,-1,0 } },{ { b.x, a.y, a.z },{ 0,-1,0 } },
+        { { b.x, a.y, b.z },{ 0,-1,0 } },{ { a.x, a.y, b.z },{ 0,-1,0 } },
+        { { a.x, b.y, a.z },{ 0,+1,0 } },{ { a.x, b.y, b.z },{ 0,+1,0 } },
+        { { b.x, b.y, b.z },{ 0,+1,0 } },{ { b.x, b.y, a.z },{ 0,+1,0 } },
+        { { a.x, a.y, a.z },{ 0,0,-1 } },{ { a.x, b.y, a.z },{ 0,0,-1 } },
+        { { b.x, b.y, a.z },{ 0,0,-1 } },{ { b.x, a.y, a.z },{ 0,0,-1 } },
+        { { a.x, a.y, b.z },{ 0,0,+1 } },{ { b.x, a.y, b.z },{ 0,0,+1 } },
+        { { b.x, b.y, b.z },{ 0,0,+1 } },{ { a.x, b.y, b.z },{ 0,0,+1 } },
+    };
+    mesh.triangles = { { 0,1,2 },{ 0,2,3 },{ 4,5,6 },{ 4,6,7 },{ 8,9,10 },
+    { 8,10,11 },{ 12,13,14 },{ 12,14,15 },{ 16,17,18 },
+    { 16,18,19 },{ 20,21,22 },{ 20,22,23 } };
+    return mesh;
+}
+
 void draw_mesh(GlShader * shader, GlMesh * mesh, const linalg::aliases::float4x4 & viewProj, const linalg::aliases::float4x4 & model)
 {
     linalg::aliases::float4x4 modelViewProjectionMatrix = mul(viewProj, model);
@@ -63,7 +87,7 @@ const linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 
 
 std::unique_ptr<Window> win;
 std::unique_ptr<GlShader> wireframeShader;
-std::unique_ptr<GlMesh> gizmoEditorMesh;
+std::unique_ptr<GlMesh> gizmoEditorMesh, cubeMesh;
 
 int main(int argc, char * argv[])
 {
@@ -89,11 +113,12 @@ int main(int argc, char * argv[])
     wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
 
     gizmoEditorMesh.reset(new GlMesh());
+    cubeMesh.reset(new GlMesh());
 
-    interaction_state gis;
-    gizmo_context gizmoEditor;
+    interaction_state the_interaction_state;
+    gizmo_context the_gizmo_context;
 
-    gizmoEditor.render = [&](const geometry_mesh & r)
+    the_gizmo_context.render = [&](const geometry_mesh & r)
     {
         upload_mesh(r, gizmoEditorMesh.get());
         draw_mesh(wireframeShader.get(), gizmoEditorMesh.get(), cam.get_viewproj_matrix({ 0, 0, windowSize.x, windowSize.y }), identity4x4);
@@ -132,11 +157,11 @@ int main(int argc, char * argv[])
     {
         if (event.type == InputEvent::KEY)
         {
-            if (event.value[0] == GLFW_KEY_L) gis.hotkey_local = event.is_down();
-            if (event.value[0] == GLFW_KEY_T) gis.hotkey_translate = event.is_down();
-            if (event.value[0] == GLFW_KEY_R) gis.hotkey_rotate = event.is_down();
-            if (event.value[0] == GLFW_KEY_S) gis.hotkey_scale = event.is_down();
-            if (event.value[0] == GLFW_KEY_LEFT_CONTROL) gis.hotkey_ctrl = event.is_down();
+            if (event.value[0] == GLFW_KEY_L) the_interaction_state.hotkey_local = event.is_down();
+            if (event.value[0] == GLFW_KEY_T) the_interaction_state.hotkey_translate = event.is_down();
+            if (event.value[0] == GLFW_KEY_R) the_interaction_state.hotkey_rotate = event.is_down();
+            if (event.value[0] == GLFW_KEY_S) the_interaction_state.hotkey_scale = event.is_down();
+            if (event.value[0] == GLFW_KEY_LEFT_CONTROL) the_interaction_state.hotkey_ctrl = event.is_down();
 
             if (event.value[0] == GLFW_KEY_W) bf = event.is_down();
             if (event.value[0] == GLFW_KEY_A) bl = event.is_down();
@@ -146,16 +171,16 @@ int main(int argc, char * argv[])
         }
         else if (event.type == InputEvent::MOUSE)
         {
-            gis.mouse_left = event.is_down();
+            the_interaction_state.mouse_left = event.is_down();
 
             if (event.value[0] == GLFW_MOUSE_BUTTON_LEFT) ml = event.is_down();
             if (event.value[0] == GLFW_MOUSE_BUTTON_RIGHT) mr = event.is_down();
         }
         else if (event.type == InputEvent::CURSOR)
         {
-            gis.cursor = minalg::float2(event.cursor.x, event.cursor.y);
+            the_interaction_state.cursor = minalg::float2(event.cursor.x, event.cursor.y);
 
-            auto deltaCursorMotion = gis.cursor - lastCursor;
+            auto deltaCursorMotion = the_interaction_state.cursor - lastCursor;
             if (mr)
             {
                 cam.yaw -= deltaCursorMotion.x * 0.01f;
@@ -200,17 +225,17 @@ int main(int argc, char * argv[])
 
         // Gizmo input interaction state populated via win->on_input(...) callback above.
         // Now populate other app parameters: 
-        gis.viewport = rect{0, 0, windowSize.x, windowSize.y};
-        gis.timestep = timestep;
-        gis.cam.near_clip = cam.near_clip;
-        gis.cam.far_clip = cam.far_clip;
-        gis.cam.yfov = cam.yfov;
-        gis.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
-        gis.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
+        the_interaction_state.viewport = rect{0, 0, windowSize.x, windowSize.y};
+        the_interaction_state.timestep = timestep;
+        the_interaction_state.cam.near_clip = cam.near_clip;
+        the_interaction_state.cam.far_clip = cam.far_clip;
+        the_interaction_state.cam.yfov = cam.yfov;
+        the_interaction_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
+        the_interaction_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
-        gizmoEditor.update(gis);
-        transform_gizmo("xform-example-gizmo", gizmoEditor, transform);
-        gizmoEditor.draw();
+        the_gizmo_context.update(the_interaction_state);
+        transform_gizmo("xform-example-gizmo", the_gizmo_context, transform);
+        the_gizmo_context.draw();
 
         gl_check_error(__FILE__, __LINE__);
 

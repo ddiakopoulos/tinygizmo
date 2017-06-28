@@ -447,16 +447,6 @@ struct rigid_transform
     bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
 };
 
-struct rect
-{
-    int x0, y0, x1, y1;
-    int width() const { return x1 - x0; }
-    int height() const { return y1 - y0; }
-    int2 dims() const { return{ width(), height() }; }
-    float aspect_ratio() const { return (float)width() / height(); }
-    template<class T> bool contains(const minalg::vec<T, 2> & point) const { return point.x >= x0 && point.y >= y0 && point.x < x1 && point.y < y1; }
-};
-
 struct camera_parameters
 {
     float yfov, near_clip, far_clip;
@@ -495,11 +485,10 @@ struct interaction_state
     bool hotkey_scale{ false };
     bool hotkey_local{ false };
     bool hotkey_ctrl{ false };
-    float snap_translation{ 0.f };      // ...
-    float snap_rotation{ 0.f };         // ...
-    float snap_scale{ 0.f };            // ...
-    float timestep{ 0.f };              // Timestep between the last frame and this one (unused)
-    rect viewport;                      // Current 3d viewport used to render the scene
+    float snap_translation{ 0.f };      // World-scale units used for snapping translation
+    float snap_scale{ 0.f };            // World-scale units used for snapping scale
+    float snap_rotation{ 0.f };         // Radians used for snapping rotation quaternions (i.e. PI/8 or PI/16)
+    float2 viewport_size;               // 3d viewport used to render the view
     float2 cursor;                      // Current cursor location in window coordinates
     camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
 };
