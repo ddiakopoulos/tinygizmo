@@ -415,11 +415,11 @@ using namespace minalg;
 static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
 static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
 
-template<class T> std::ostream & operator << (std::ostream & a, vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
-template<class T> std::ostream & operator << (std::ostream & a, vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
-template<class T> std::ostream & operator << (std::ostream & a, vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
-template<class T, int N> std::ostream & operator << (std::ostream & a, const mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
-template<class T, int N> std::ostream & operator << (std::ostream & a, const mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
+template<class T> std::ostream & operator << (std::ostream & a, minalg::vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, minalg::vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
+template<class T> std::ostream & operator << (std::ostream & a, minalg::vec<T, 4> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << ", " << b.w << '}'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
+template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
 
 ///////////////////////
 //   Utility Math    //

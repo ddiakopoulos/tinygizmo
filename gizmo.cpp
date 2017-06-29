@@ -16,6 +16,13 @@
 
 static const float tau = 6.28318530718f;
 
+void flush_to_zero(float3 & f)
+{
+    if (std::abs(f.x) < 0.02f) f.x = 0.f;
+    if (std::abs(f.y) < 0.02f) f.y = 0.f;
+    if (std::abs(f.z) < 0.02f) f.z = 0.f;
+}
+
 // 32 bit Fowler–Noll–Vo Hash
 uint32_t hash_fnv1a(const std::string & str)
 {
@@ -584,19 +591,38 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     }
 }
 
-void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, bool uniform)
+void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, const bool uniform)
 {
     if (g.active_state.mouse_left)
     {
-        float3 s = center;
-
         const float3 plane_tangent = cross(axis, center - g.active_state.cam.position);
         const float3 plane_normal = cross(axis, plane_tangent);
-        plane_translation_dragger(g, plane_normal, s);
 
-        auto scaled = g.original_scale + axis * ((s - 1.f) * dot(g.original_scale, axis));
-        if (uniform) scale = float3(clamp(dot(s, scaled), 0.01f, 1000.f));
-        else scale = float3(clamp(scaled.x, 0.01f, 1000.f), clamp(scaled.y, 0.01f, 1000.f), clamp(scaled.z, 0.01f, 1000.f));
+        float3 distance;
+        if (g.active_state.mouse_left)
+        {
+            // Define the plane to contain the original position of the object
+            const float3 plane_point = center;
+
+            // Define a ray emitting from the camera underneath the cursor
+            const ray ray = g.get_ray_from_cursor(g.active_state.cam);
+
+            // If an intersection exists between the ray and the plane, place the object at that point
+            const float denom = dot(ray.direction, plane_normal);
+            if (std::abs(denom) == 0) return;
+
+            const float t = dot(plane_point - ray.origin, plane_normal) / denom;
+            if (t < 0) return;
+
+            distance = ray.origin + ray.direction * t;
+        }
+
+        float3 offset_on_axis = (distance - g.click_offset) * axis;
+        flush_to_zero(offset_on_axis);
+        float3 new_scale = scale = g.original_scale + offset_on_axis;
+
+        if (uniform) scale = float3(clamp(dot(distance, new_scale), 0.01f, 1000.f));
+        else scale = float3(clamp(new_scale.x, 0.01f, 1000.f), clamp(new_scale.y, 0.01f, 1000.f), clamp(new_scale.z, 0.01f, 1000.f));
         if (g.active_state.snap_scale) scale = snap(scale, g.active_state.snap_scale);
     }
 }
@@ -620,7 +646,6 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
         if (g.interaction_mode != interact::none)
         {
             g.original_scale = scale;
-            g.original_position = center;
             g.click_offset = p.transform_point(ray.origin + ray.direction*t);
             g.active[h] = true;
         }

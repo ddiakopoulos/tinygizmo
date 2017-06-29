@@ -240,6 +240,10 @@ int main(int argc, char * argv[])
         transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);
         gizmo_ctx.draw();
 
+        //std::cout << "Position:    " << transform.position << std::endl;
+        //std::cout << "Orientation: " << transform.orientation << std::endl;
+        //std::cout << "Scale:       " << transform.scale << std::endl;
+
         gl_check_error(__FILE__, __LINE__);
 
         win->swap_buffers();
