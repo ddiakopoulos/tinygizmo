@@ -527,7 +527,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         {
             g.original_position = center;
             g.original_orientation = p.orientation;
-            g.click_offset = p.transform_vector(ray.origin + ray.direction * t);
+            g.click_offset = p.transform_point(ray.origin + ray.direction * t);
             g.active[h] = true;
         }
         else g.active[h] = false;
@@ -567,7 +567,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     {
         // Get the difference between quats
         float4 change = normalize(qmul(p.orientation, qinv(g.original_orientation)));
-        float3 a = qrot(change, g.click_offset);
+        float3 a = qrot(change, g.click_offset - g.original_position);
 
         // Create orthonormal basis for drawing the arrow
         float3 zDir = normalize(activeAxis), xDir = normalize(cross(a, zDir)), yDir = cross(zDir, xDir);
@@ -585,10 +585,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         // Rotate original quat by the diff
         orientation = normalize(qmul(change, p.orientation));
     }
-    else if (g.local_toggle == true && g.interaction_mode != interact::none)
-    {
-        orientation = p.orientation;
-    }
+    else if (g.local_toggle == true && g.interaction_mode != interact::none) orientation = p.orientation;
 }
 
 void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, const bool uniform)
