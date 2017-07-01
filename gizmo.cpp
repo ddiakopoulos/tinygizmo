@@ -349,11 +349,11 @@ void gizmo_context::gizmo_context_impl::draw()
 // Private Gizmo Implementations //
 ///////////////////////////////////
 
-void axis_rotation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float4 & orientation)
+void axis_rotation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, const float4 & start_orientation, float4 & orientation)
 {
     if (g.active_state.mouse_left)
     {
-        rigid_transform original_pose = { g.original_orientation, g.original_position };
+        rigid_transform original_pose = { start_orientation, g.original_position };
         float3 the_axis = original_pose.transform_vector(axis);
         float4 the_plane = { the_axis, -dot(the_axis, g.click_offset) };
         const ray r = g.get_ray_from_cursor(g.active_state.cam);
@@ -366,20 +366,20 @@ void axis_rotation_dragger(gizmo_context::gizmo_context_impl & g, const float3 &
             float3 arm2 = normalize(r.origin + r.direction * t - center_of_rotation);
 
             float d = dot(arm1, arm2);
-            if (d > 0.999f) { orientation = g.original_orientation; return; }
+            if (d > 0.999f) { orientation = start_orientation; return; }
 
             float angle = std::acos(d);
-            if (angle < 0.001f) { orientation = g.original_orientation; return; }
+            if (angle < 0.001f) { orientation = start_orientation; return; }
 
             if (g.active_state.snap_rotation)
             {
                 auto snapped = make_rotation_quat_between_vectors_snapped(arm1, arm2, g.active_state.snap_rotation);
-                orientation = qmul(snapped, g.original_orientation);
+                orientation = qmul(snapped, start_orientation);
             }
             else
             {
                 auto a = normalize(cross(arm1, arm2));
-                orientation = qmul(rotation_quat(a, angle), g.original_orientation);
+                orientation = qmul(rotation_quat(a, angle), start_orientation);
             }
         }
     }
@@ -510,8 +510,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
     auto h = hash_fnv1a(name);
 
-    // Orientation is local by default
-    auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center);
+    auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center); // Orientation is local by default
 
     if (g.has_clicked)
     {
@@ -526,7 +525,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         if (g.interaction_mode != interact::none)
         {
             g.original_position = center;
-            g.original_orientation = p.orientation;
+            g.original_orientation = orientation;
             g.click_offset = p.transform_point(ray.origin + ray.direction * t);
             g.active[h] = true;
         }
@@ -536,11 +535,12 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     float3 activeAxis;
     if (g.active[h])
     {
+        const float4 starting_orientation = g.local_toggle ? g.original_orientation : float4(0, 0, 0, 1);
         switch (g.interaction_mode)
         {
-        case interact::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, p.orientation); activeAxis = { 1, 0, 0 }; break;
-        case interact::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, p.orientation); activeAxis = { 0, 1, 0 }; break;
-        case interact::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, p.orientation); activeAxis = { 0, 0, 1 }; break;
+        case interact::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, starting_orientation, p.orientation); activeAxis = { 1, 0, 0 }; break;
+        case interact::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, starting_orientation, p.orientation); activeAxis = { 0, 1, 0 }; break;
+        case interact::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, starting_orientation, p.orientation); activeAxis = { 0, 0, 1 }; break;
         }
     }
 
@@ -565,11 +565,8 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     // and draw an arrow from the center of the gizmo to indicate the degree of rotation
     if (g.local_toggle == false && g.interaction_mode != interact::none)
     {
-        // Get the difference between quats
-        float4 change = normalize(qmul(p.orientation, qinv(g.original_orientation)));
-        float3 a = qrot(change, g.click_offset - g.original_position);
-
         // Create orthonormal basis for drawing the arrow
+        float3 a = qrot(p.orientation, g.click_offset - g.original_position);
         float3 zDir = normalize(activeAxis), xDir = normalize(cross(a, zDir)), yDir = cross(zDir, xDir);
 
         // Ad-hoc geometry
@@ -582,8 +579,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position);
         g.drawlist.push_back(r);
 
-        // Rotate original quat by the diff
-        orientation = normalize(qmul(change, p.orientation));
+        orientation = qmul(p.orientation, g.original_orientation);
     }
     else if (g.local_toggle == true && g.interaction_mode != interact::none) orientation = p.orientation;
 }
