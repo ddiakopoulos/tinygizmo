@@ -1,7 +1,7 @@
 # immediate-mode gizmo
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ddiakopoulos/gizmo/master/preview.png"/>
+  <img src="https://raw.githubusercontent.com/ddiakopoulos/tinygizmo/master/preview.png"/>
 </p>
 
 This project is a lightweight, self-contained library for gizmo editing. It includes gizmos for translation, rotation, and scale. Implemented in C++11, the library does not perform rendering directly and instead provides a per-frame buffer of world-space triangles.
