@@ -31,7 +31,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tiny-gizmo.cpp" />
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="example-main.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E8595BE1-022E-46B2-9079-A12C655C5E4B}</ProjectGuid>

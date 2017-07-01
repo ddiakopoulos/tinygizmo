@@ -421,85 +421,86 @@ template<class T> std::ostream & operator << (std::ostream & a, minalg::vec<T, 4
 template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 3, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n'; }
 template<class T, int N> std::ostream & operator << (std::ostream & a, const minalg::mat<T, 4, N> & b) { return a << '\n' << b.row(0) << '\n' << b.row(1) << '\n' << b.row(2) << '\n' << b.row(3) << '\n'; }
 
-///////////////////////
-//   Utility Math    //
-///////////////////////
-
-struct rigid_transform
+namespace tinygizmo
 {
-    float3  position{ 0,0,0 };
-    float4  orientation{ 0,0,0,1 };
-    float3  scale{ 1,1,1 };
 
-    rigid_transform() {}
-    rigid_transform(const float4 & orientation, const float3 & position, const float3 & scale) : orientation(orientation), position(position), scale(scale) {}
-    rigid_transform(const float4 & orientation, const float3 & position, float scale) : orientation(orientation), position(position), scale(scale) {}
-    rigid_transform(const float4 & orientation, const float3 & position) : orientation(orientation), position(position) {}
+    ///////////////////////
+    //   Utility Math    //
+    ///////////////////////
 
-    float4x4    matrix() const { return{ { qxdir(orientation)*scale.x,0 },{ qydir(orientation)*scale.y,0 },{ qzdir(orientation)*scale.z,0 },{ position,1 } }; }
-    float3      transform_vector(const float3 & vec) const { return qrot(orientation, vec * scale); }
-    float3      transform_point(const float3 & p) const { return position + transform_vector(p); }
-    float3      detransform_point(const float3 & p) const { return detransform_vector(p - position); }
-    float3      detransform_vector(const float3 & vec) const { return qrot(qinv(orientation), vec) / scale; }
+    struct rigid_transform
+    {
+        float3  position{ 0,0,0 };
+        float4  orientation{ 0,0,0,1 };
+        float3  scale{ 1,1,1 };
 
-    bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
-};
+        rigid_transform() {}
+        rigid_transform(const float4 & orientation, const float3 & position, const float3 & scale) : orientation(orientation), position(position), scale(scale) {}
+        rigid_transform(const float4 & orientation, const float3 & position, float scale) : orientation(orientation), position(position), scale(scale) {}
+        rigid_transform(const float4 & orientation, const float3 & position) : orientation(orientation), position(position) {}
 
-struct camera_parameters
-{
-    float yfov, near_clip, far_clip;
-    float3 position;
-    float4 orientation;
-};
+        float4x4    matrix() const { return{ { qxdir(orientation)*scale.x,0 },{ qydir(orientation)*scale.y,0 },{ qzdir(orientation)*scale.z,0 },{ position,1 } }; }
+        float3      transform_vector(const float3 & vec) const { return qrot(orientation, vec * scale); }
+        float3      transform_point(const float3 & p) const { return position + transform_vector(p); }
+        float3      detransform_point(const float3 & p) const { return detransform_vector(p - position); }
+        float3      detransform_vector(const float3 & vec) const { return qrot(qinv(orientation), vec) / scale; }
 
-struct geometry_vertex { float3 position, normal, color; };
-struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
+        bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
+    };
 
-///////////////
-//   Gizmo   //
-///////////////
+    struct camera_parameters
+    {
+        float yfov, near_clip, far_clip;
+        float3 position;
+        float4 orientation;
+    };
 
-enum class transform_mode
-{
-    translate,
-    rotate,
-    scale
-};
+    struct geometry_vertex { float3 position, normal, color; };
+    struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
 
-struct gizmo_application_state
-{
-    bool mouse_left{ false };
-    bool hotkey_translate{ false };
-    bool hotkey_rotate{ false };
-    bool hotkey_scale{ false };
-    bool hotkey_local{ false };
-    bool hotkey_ctrl{ false };
-    float snap_translation{ 0.f };      // World-scale units used for snapping translation
-    float snap_scale{ 0.f };            // World-scale units used for snapping scale
-    float snap_rotation{ 0.f };         // Radians used for snapping rotation quaternions (i.e. PI/8 or PI/16)
-    float2 viewport_size;               // 3d viewport used to render the view
-    float2 cursor;                      // Current cursor location in window coordinates
-    camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
-};
+    ///////////////
+    //   Gizmo   //
+    ///////////////
 
-struct gizmo_context
-{
-    struct gizmo_context_impl;
-    std::unique_ptr<gizmo_context_impl> impl;
+    enum class transform_mode
+    {
+        translate,
+        rotate,
+        scale
+    };
 
-    gizmo_context();
-    ~gizmo_context();
+    struct gizmo_application_state
+    {
+        bool mouse_left{ false };
+        bool hotkey_translate{ false };
+        bool hotkey_rotate{ false };
+        bool hotkey_scale{ false };
+        bool hotkey_local{ false };
+        bool hotkey_ctrl{ false };
+        float snap_translation{ 0.f };      // World-scale units used for snapping translation
+        float snap_scale{ 0.f };            // World-scale units used for snapping scale
+        float snap_rotation{ 0.f };         // Radians used for snapping rotation quaternions (i.e. PI/8 or PI/16)
+        float2 viewport_size;               // 3d viewport used to render the view
+        float2 cursor;                      // Current cursor location in window coordinates
+        camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
+    };
 
-    void update(const gizmo_application_state & state);     // Clear geometry buffer and update internal `gizmo_application_state` data
-    void draw();                                            // Trigger a render callback per call to `update(...)`
-    transform_mode get_mode() const;                        // Return the active mode being used by `transform_gizmo(...)`
-    std::function<void(const geometry_mesh & r)> render;    // Callback to render the gizmo meshes
-};
+    struct gizmo_context
+    {
+        struct gizmo_context_impl;
+        std::unique_ptr<gizmo_context_impl> impl;
 
-///////////////////////////
-//   Gizmo Definitions   //
-///////////////////////////
+        gizmo_context();
+        ~gizmo_context();
 
-void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
+        void update(const gizmo_application_state & state);     // Clear geometry buffer and update internal `gizmo_application_state` data
+        void draw();                                            // Trigger a render callback per call to `update(...)`
+        transform_mode get_mode() const;                        // Return the active mode being used by `transform_gizmo(...)`
+        std::function<void(const geometry_mesh & r)> render;    // Callback to render the gizmo meshes
+    };
+
+    void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
+
+} // end namespace tiny gizmo;
 
 #endif // end tinygizmo_hpp

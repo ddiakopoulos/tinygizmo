@@ -9,10 +9,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
     <ClCompile Include="tiny-gizmo.cpp">
       <Filter>gizmo</Filter>
     </ClCompile>
+    <ClCompile Include="example-main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util.hpp">

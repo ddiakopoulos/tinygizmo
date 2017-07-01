@@ -10,6 +10,8 @@
 #include <functional>
 #include <map>
 
+using namespace tinygizmo;
+
 ///////////////////////
 //   Utility Math    //
 ///////////////////////
@@ -681,7 +683,7 @@ void gizmo_context::update(const gizmo_application_state & state) { impl->update
 void gizmo_context::draw() { impl->draw(); }
 transform_mode gizmo_context::get_mode() const { return impl->mode; }
 
-void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t)
+void tinygizmo::transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t)
 {
     if (g.impl->active_state.hotkey_ctrl == true)
     {
