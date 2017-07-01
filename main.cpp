@@ -1,4 +1,7 @@
-﻿#include <iostream>
+﻿// This is free and unencumbered software released into the public domain.
+// For more information, please refer to <http://unlicense.org>
+
+#include <iostream>
 #include <functional>
 #include <map>
 #include <memory>
@@ -11,6 +14,7 @@
 
 #include "util.hpp"
 #include "gl-api.hpp"
+#include "teapot.h"
 
 constexpr const char basic_wireframe_vert[] = R"(#version 330
     layout(location = 0) in vec3 vertex;
@@ -35,9 +39,70 @@ constexpr const char basic_wireframe_frag[] = R"(#version 330
     }
 )";
 
+constexpr const char lit_vert[] = R"(#version 330
+    uniform mat4 u_modelMatrix;
+    uniform mat4 u_viewProj;
+
+    layout(location = 0) in vec3 inPosition;
+    layout(location = 1) in vec3 inNormal;
+
+    out vec3 v_position, v_normal;
+
+    void main()
+    {
+        vec4 worldPos = u_modelMatrix * vec4(inPosition, 1);
+        v_position = worldPos.xyz;
+        v_normal = normalize((u_modelMatrix * vec4(inNormal,0)).xyz);
+        gl_Position = u_viewProj * worldPos;
+    }
+)";
+
+constexpr const char lit_frag[] = R"(#version 330
+    uniform vec3 u_diffuse = vec3(1, 1, 1);
+    uniform vec3 u_eye;
+
+    in vec3 v_position;
+    in vec3 v_normal;
+
+    out vec4 f_color;
+    
+    vec3 compute_lighting(vec3 eyeDir, vec3 position, vec3 color)
+    {
+        vec3 light = vec3(0, 0, 0);
+        vec3 lightDir = normalize(position - v_position);
+        light += color * u_diffuse * max(dot(v_normal, lightDir), 0);
+        vec3 halfDir = normalize(lightDir + eyeDir);
+        light += color * u_diffuse * pow(max(dot(v_normal, halfDir), 0), 128);
+        return light;
+    }
+
+    void main()
+    {
+        vec3 eyeDir = vec3(0, 1, -2);
+        vec3 light = vec3(0, 0, 0);
+        light += compute_lighting(eyeDir, vec3(+3, 1, 0), vec3(235.0/255.0, 43.0/255.0, 211.0/255.0));
+        light += compute_lighting(eyeDir, vec3(-3, 1, 0), vec3(43.0/255.0, 236.0/255.0, 234.0/255.0));
+        f_color = vec4(light + vec3(0.5, 0.5, 0.5), 1.0);
+    }
+)";
+
 //////////////////////////
 //   Main Application   //
 //////////////////////////
+
+geometry_mesh make_teapot()
+{
+    geometry_mesh mesh;
+    for (int i = 0; i < 4974; i+=6)
+    {
+        geometry_vertex v;
+        v.position = float3(teapot_vertices[i + 0], teapot_vertices[i + 1], teapot_vertices[i + 2]);
+        v.normal = float3(teapot_vertices[i + 3], teapot_vertices[i + 4], teapot_vertices[i + 5]);
+        mesh.vertices.push_back(v);
+    }
+    for (int i = 0; i < 4680; i+=3) mesh.triangles.push_back(uint3(teapot_triangles[i + 0], teapot_triangles[i + 1], teapot_triangles[i + 2]));
+    return mesh;
+}
 
 geometry_mesh make_cube(const float3 & min_bounds, const float3 & max_bounds)
 {
@@ -72,6 +137,16 @@ void draw_mesh(GlShader * shader, GlMesh * mesh, const linalg::aliases::float4x4
     shader->unbind();
 }
 
+void draw_lit_mesh(GlShader * shader, GlMesh * mesh, const linalg::aliases::float3 eye, const linalg::aliases::float4x4 & viewProj, const linalg::aliases::float4x4 & model)
+{
+    shader->bind();
+    shader->uniform("u_viewProj", viewProj);
+    shader->uniform("u_modelMatrix", model);
+    shader->uniform("u_eye", eye);
+    mesh->draw_elements();
+    shader->unbind();
+}
+
 void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
 {
     const std::vector<linalg::aliases::float3> & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
@@ -86,8 +161,8 @@ void upload_mesh(const geometry_mesh & cpu, GlMesh * gpu)
 const linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
 
 std::unique_ptr<Window> win;
-std::unique_ptr<GlShader> wireframeShader;
-std::unique_ptr<GlMesh> gizmoEditorMesh, cubeMesh;
+std::unique_ptr<GlShader> wireframeShader, litShader;
+std::unique_ptr<GlMesh> gizmoEditorMesh, cubeMesh, teapotMesh;
 
 int main(int argc, char * argv[])
 {
@@ -111,15 +186,21 @@ int main(int argc, char * argv[])
 
     linalg::aliases::int2 windowSize = win->get_window_size();
     wireframeShader.reset(new GlShader(basic_wireframe_vert, basic_wireframe_frag));
+    litShader.reset(new GlShader(lit_vert, lit_frag));
 
     gizmoEditorMesh.reset(new GlMesh());
     cubeMesh.reset(new GlMesh());
+    teapotMesh.reset(new GlMesh());
 
     gizmo_application_state gizmo_state;
     gizmo_context gizmo_ctx;
 
     geometry_mesh cube = make_cube(float3(-0.5), float3(0.5));
     upload_mesh(cube, cubeMesh.get());
+
+    geometry_mesh teapot = make_teapot();
+
+    upload_mesh(teapot, teapotMesh.get());
 
     gizmo_ctx.render = [&](const geometry_mesh & r)
     {
@@ -214,7 +295,7 @@ int main(int argc, char * argv[])
         glViewport(0, 0, windowSize.x, windowSize.y);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);  
+        glClearColor(0.7f, 0.7f, 0.7f, 1.0f);  
 
         linalg::aliases::float4 cameraOrientation = cam.get_orientation();
 
@@ -228,13 +309,13 @@ int main(int argc, char * argv[])
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
 
         glDisable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
-
-        auto cubeModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
-        draw_mesh(wireframeShader.get(), cubeMesh.get(), cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), cubeModelMatrix);
+        glEnable(GL_DEPTH_TEST);
+        
+        auto teapotModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
+        draw_lit_mesh(litShader.get(), teapotMesh.get(), cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix);
 
         glEnable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_DEPTH_TEST);
 
         gizmo_ctx.update(gizmo_state);
         transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);

@@ -1,3 +1,6 @@
+// This is free and unencumbered software released into the public domain.
+// For more information, please refer to <http://unlicense.org>
+
 #pragma once
 
 #ifndef gizmin_example_util_hpp
@@ -13,7 +16,7 @@
 #define GLFW_INCLUDE_GLU
 #include "GLFW\glfw3.h"
 
-#include "gizmo.hpp"
+#include "tiny-gizmo.hpp"
 #include "linalg.h"
 
 ///////////////////////////////////

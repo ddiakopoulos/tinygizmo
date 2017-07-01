@@ -24,19 +24,20 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gizmo.hpp" />
+    <ClInclude Include="tiny-gizmo.hpp" />
     <ClInclude Include="gl-api.hpp" />
+    <ClInclude Include="teapot.h" />
     <ClInclude Include="util.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="gizmo.cpp" />
+    <ClCompile Include="tiny-gizmo.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E8595BE1-022E-46B2-9079-A12C655C5E4B}</ProjectGuid>
     <RootNamespace>xlab_cpp</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
-    <ProjectName>gizmin-example</ProjectName>
+    <ProjectName>tiny-gizmo-example</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

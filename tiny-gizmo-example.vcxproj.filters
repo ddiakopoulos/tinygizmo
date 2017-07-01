@@ -9,10 +9,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="gizmo.cpp">
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="tiny-gizmo.cpp">
       <Filter>gizmo</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util.hpp">
@@ -21,8 +21,11 @@
     <ClInclude Include="gl-api.hpp">
       <Filter>extra</Filter>
     </ClInclude>
-    <ClInclude Include="gizmo.hpp">
+    <ClInclude Include="tiny-gizmo.hpp">
       <Filter>gizmo</Filter>
+    </ClInclude>
+    <ClInclude Include="teapot.h">
+      <Filter>extra</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

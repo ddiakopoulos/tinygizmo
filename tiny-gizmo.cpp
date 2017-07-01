@@ -1,7 +1,7 @@
 // This is free and unencumbered software released into the public domain.
 // For more information, please refer to <http://unlicense.org>
 
-#include "gizmo.hpp"
+#include "tiny-gizmo.hpp"
 
 #include <assert.h>
 #include <memory>       

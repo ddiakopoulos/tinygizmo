@@ -3,8 +3,8 @@
 
 #pragma once
 
-#ifndef gl_gizmo_hpp
-#define gl_gizmo_hpp
+#ifndef tinygizmo_hpp
+#define tinygizmo_hpp
 
 #include <cmath>        // For various unary math functions, such as std::sqrt
 #include <cstdlib>      // To resolve std::abs ambiguity on clang
@@ -502,4 +502,4 @@ struct gizmo_context
 
 void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
 
-#endif // end gl_gizmo_hpp
+#endif // end tinygizmo_hpp
