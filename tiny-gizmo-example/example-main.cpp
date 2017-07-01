@@ -301,8 +301,7 @@ int main(int argc, char * argv[])
 
         linalg::aliases::float4 cameraOrientation = cam.get_orientation();
 
-        // Gizmo input interaction state populated via win->on_input(...) callback above.
-        // Now populate other app parameters: 
+        // Gizmo input interaction state populated via win->on_input(...) callback above. Update app parameters: 
         gizmo_state.viewport_size = minalg::float2(windowSize.x, windowSize.y);
         gizmo_state.cam.near_clip = cam.near_clip;
         gizmo_state.cam.far_clip = cam.far_clip;
@@ -316,8 +315,9 @@ int main(int argc, char * argv[])
         auto teapotModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
         draw_lit_mesh(litShader.get(), teapotMesh.get(), cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix);
 
+        glClear(GL_DEPTH_BUFFER_BIT);
+
         glEnable(GL_CULL_FACE);
-        glDisable(GL_DEPTH_TEST);
 
         gizmo_ctx.update(gizmo_state);
         transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);

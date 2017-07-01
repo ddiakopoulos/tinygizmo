@@ -324,9 +324,9 @@ ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_paramete
 void gizmo_context::gizmo_context_impl::update(const gizmo_application_state & state)
 {
     active_state = state;
-    local_toggle = (last_state.hotkey_local == false && active_state.hotkey_local == true) ? !local_toggle : local_toggle;
-    has_clicked = (last_state.mouse_left == false && active_state.mouse_left == true) ? true : false;
-    has_released = (last_state.mouse_left == true && active_state.mouse_left == false) ? true : false;
+    local_toggle = (!last_state.hotkey_local && active_state.hotkey_local && active_state.hotkey_ctrl) ? !local_toggle : local_toggle;
+    has_clicked = (!last_state.mouse_left && active_state.mouse_left) ? true : false;
+    has_released = (last_state.mouse_left && !active_state.mouse_left) ? true : false;
     drawlist.clear();
 }
 
