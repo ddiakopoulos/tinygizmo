@@ -24,13 +24,13 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="tiny-gizmo.hpp" />
+    <ClInclude Include="..\tiny-gizmo.hpp" />
     <ClInclude Include="gl-api.hpp" />
     <ClInclude Include="teapot.h" />
     <ClInclude Include="util.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="tiny-gizmo.cpp" />
+    <ClCompile Include="..\tiny-gizmo.cpp" />
     <ClCompile Include="example-main.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
