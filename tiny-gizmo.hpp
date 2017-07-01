@@ -501,6 +501,6 @@ namespace tinygizmo
 
     void transform_gizmo(const std::string & name, gizmo_context & g, rigid_transform & t);
 
-} // end namespace tiny gizmo;
+} // end namespace tinygizmo;
 
 #endif // end tinygizmo_hpp

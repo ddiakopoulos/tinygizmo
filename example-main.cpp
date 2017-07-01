@@ -178,7 +178,7 @@ int main(int argc, char * argv[])
 
     try
     {
-        win.reset(new Window(1280, 800, "gizmin-example"));
+        win.reset(new Window(1280, 800, "tiny-gizmo-example-app"));
         glfwSwapInterval(1);
     }
     catch (const std::exception & e)

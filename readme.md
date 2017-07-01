@@ -1,5 +1,9 @@
 # immediate-mode gizmo
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ddiakopoulos/gizmo/master/preview.png"/>
+</p>
+
 This project is a lightweight, self-contained library for gizmo editing. It includes gizmos for translation, rotation, and scale. Implemented in C++11, the library does not perform rendering directly and instead provides a per-frame buffer of world-space triangles.
 
 An included example illustrates a rendering and key/mouse implementation using GLFW with an OpenGL 3.3 context. Known limitations include hardcoded assumptions about a right-handed, Y-up coordinate system. 
