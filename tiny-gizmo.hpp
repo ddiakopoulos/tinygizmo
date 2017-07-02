@@ -406,14 +406,9 @@ template<class T> T minalg::determinant(const mat<T, 4, 4> & a)
         + a.x.w*(a.y.x*a.w.y*a.z.z + a.z.x*a.y.y*a.w.z + a.w.x*a.z.y*a.y.z - a.y.x*a.z.y*a.w.z - a.w.x*a.y.y*a.z.z - a.z.x*a.w.y*a.y.z);
 }
 
-using namespace minalg;
-
 //////////////////////////
 //   Linalg Utilities   //
 //////////////////////////
-
-static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
-static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
 
 template<class T> std::ostream & operator << (std::ostream & a, minalg::vec<T, 2> & b) { return a << '{' << b.x << ", " << b.y << '}'; }
 template<class T> std::ostream & operator << (std::ostream & a, minalg::vec<T, 3> & b) { return a << '{' << b.x << ", " << b.y << ", " << b.z << '}'; }
@@ -430,20 +425,20 @@ namespace tinygizmo
 
     struct rigid_transform
     {
-        float3  position{ 0,0,0 };
-        float4  orientation{ 0,0,0,1 };
-        float3  scale{ 1,1,1 };
+        minalg::float3  position{ 0,0,0 };
+        minalg::float4  orientation{ 0,0,0,1 };
+        minalg::float3  scale{ 1,1,1 };
 
         rigid_transform() {}
-        rigid_transform(const float4 & orientation, const float3 & position, const float3 & scale) : orientation(orientation), position(position), scale(scale) {}
-        rigid_transform(const float4 & orientation, const float3 & position, float scale) : orientation(orientation), position(position), scale(scale) {}
-        rigid_transform(const float4 & orientation, const float3 & position) : orientation(orientation), position(position) {}
+        rigid_transform(const minalg::float4 & orientation, const minalg::float3 & position, const minalg::float3 & scale) : orientation(orientation), position(position), scale(scale) {}
+        rigid_transform(const minalg::float4 & orientation, const minalg::float3 & position, float scale) : orientation(orientation), position(position), scale(scale) {}
+        rigid_transform(const minalg::float4 & orientation, const minalg::float3 & position) : orientation(orientation), position(position) {}
 
-        float4x4    matrix() const { return{ { qxdir(orientation)*scale.x,0 },{ qydir(orientation)*scale.y,0 },{ qzdir(orientation)*scale.z,0 },{ position,1 } }; }
-        float3      transform_vector(const float3 & vec) const { return qrot(orientation, vec * scale); }
-        float3      transform_point(const float3 & p) const { return position + transform_vector(p); }
-        float3      detransform_point(const float3 & p) const { return detransform_vector(p - position); }
-        float3      detransform_vector(const float3 & vec) const { return qrot(qinv(orientation), vec) / scale; }
+        minalg::float4x4    matrix() const { return{ { qxdir(orientation)*scale.x,0 },{ qydir(orientation)*scale.y,0 },{ qzdir(orientation)*scale.z,0 },{ position,1 } }; }
+        minalg::float3      transform_vector(const minalg::float3 & vec) const { return qrot(orientation, vec * scale); }
+        minalg::float3      transform_point(const minalg::float3 & p) const { return position + transform_vector(p); }
+        minalg::float3      detransform_point(const minalg::float3 & p) const { return detransform_vector(p - position); }
+        minalg::float3      detransform_vector(const minalg::float3 & vec) const { return qrot(qinv(orientation), vec) / scale; }
 
         bool        uniform_scale() const { return scale.x == scale.y && scale.x == scale.z; }
     };
@@ -451,12 +446,12 @@ namespace tinygizmo
     struct camera_parameters
     {
         float yfov, near_clip, far_clip;
-        float3 position;
-        float4 orientation;
+        minalg::float3 position;
+        minalg::float4 orientation;
     };
 
-    struct geometry_vertex { float3 position, normal, color; };
-    struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<uint3> triangles; };
+    struct geometry_vertex { minalg::float3 position, normal, color; };
+    struct geometry_mesh { std::vector<geometry_vertex> vertices; std::vector<minalg::uint3> triangles; };
 
     ///////////////
     //   Gizmo   //
@@ -480,8 +475,8 @@ namespace tinygizmo
         float snap_translation{ 0.f };      // World-scale units used for snapping translation
         float snap_scale{ 0.f };            // World-scale units used for snapping scale
         float snap_rotation{ 0.f };         // Radians used for snapping rotation quaternions (i.e. PI/8 or PI/16)
-        float2 viewport_size;               // 3d viewport used to render the view
-        float2 cursor;                      // Current cursor location in window coordinates
+        minalg::float2 viewport_size;       // 3d viewport used to render the view
+        minalg::float2 cursor;              // Current cursor location in window coordinates
         camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
     };
 

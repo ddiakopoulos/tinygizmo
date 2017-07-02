@@ -17,6 +17,7 @@
 #include "teapot.h"
 
 using namespace tinygizmo;
+using namespace minalg;
 
 constexpr const char basic_wireframe_vert[] = R"(#version 330
     layout(location = 0) in vec3 vertex;
