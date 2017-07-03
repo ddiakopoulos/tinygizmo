@@ -16,8 +16,8 @@ const linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 
 constexpr const char gizmo_vert[] = R"(#version 330
     layout(location = 0) in vec3 vertex;
     layout(location = 1) in vec3 normal;
-    layout(location = 2) in vec3 color;
-    out vec3 v_color;
+    layout(location = 2) in vec4 color;
+    out vec4 v_color;
     uniform mat4 u_mvp;
     void main()
     {
@@ -27,12 +27,12 @@ constexpr const char gizmo_vert[] = R"(#version 330
 )";
 
 constexpr const char gizmo_frag[] = R"(#version 330
-    in vec3 v_color;
+    in vec4 v_color;
     out vec4 f_color;
 
     void main()
     {
-        f_color = vec4(v_color, 1);
+        f_color = v_color;
     }
 )";
 
@@ -122,12 +122,12 @@ void draw_lit_mesh(GlShader & shader, GlMesh & mesh, const linalg::aliases::floa
 
 void upload_mesh(const geometry_mesh & cpu, GlMesh & gpu)
 {
-    const std::vector<linalg::aliases::float3> & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
-    const std::vector<linalg::aliases::uint3> & tris = reinterpret_cast<const std::vector<linalg::aliases::uint3> &>(cpu.triangles);
+    const auto & verts = reinterpret_cast<const std::vector<linalg::aliases::float3> &>(cpu.vertices);
+    const auto & tris = reinterpret_cast<const std::vector<linalg::aliases::uint3> &>(cpu.triangles);
     gpu.set_vertices(verts, GL_DYNAMIC_DRAW);
     gpu.set_attribute(0, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, position));
     gpu.set_attribute(1, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, normal));
-    gpu.set_attribute(2, 3, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, color));
+    gpu.set_attribute(2, 4, GL_FLOAT, GL_FALSE, sizeof(geometry_vertex), (GLvoid*) offsetof(geometry_vertex, color));
     gpu.set_elements(tris, GL_DYNAMIC_DRAW);
 }
 
@@ -156,7 +156,7 @@ int main(int argc, char * argv[])
         std::cout << "Caught GLFW window exception: " << e.what() << std::endl;
     }
 
-    linalg::aliases::int2 windowSize = win->get_window_size();
+    auto windowSize = win->get_window_size();
 
     GlShader wireframeShader, litShader;
     GlMesh gizmoEditorMesh, teapotMesh;
@@ -230,10 +230,14 @@ int main(int argc, char * argv[])
 
         glViewport(0, 0, windowSize.x, windowSize.y);
 
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glClearColor(0.725f, 0.725f, 0.725f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glClearColor(0.7f, 0.7f, 0.7f, 1.0f);  
 
-        linalg::aliases::float4 cameraOrientation = cam.get_orientation();
+        auto cameraOrientation = cam.get_orientation();
 
         // Gizmo input interaction state populated via win->on_input(...) callback above. Update app parameters: 
         gizmo_state.viewport_size = minalg::float2(windowSize.x, windowSize.y);
@@ -242,16 +246,11 @@ int main(int argc, char * argv[])
         gizmo_state.cam.yfov = cam.yfov;
         gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
-
-        glDisable(GL_CULL_FACE);
-        glEnable(GL_DEPTH_TEST);
-        
+  
         auto teapotModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
         draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix);
 
         glClear(GL_DEPTH_BUFFER_BIT);
-
-        glEnable(GL_CULL_FACE);
 
         gizmo_ctx.update(gizmo_state);
         transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);

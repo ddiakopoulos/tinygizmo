@@ -65,8 +65,8 @@ float4 make_rotation_quat_between_vectors_snapped(const float3 & from, const flo
 
 template<typename T> T clamp(const T & val, const T & min, const T & max) { return std::min(std::max(val, min), max); }
 
-struct gizmo_mesh_component { geometry_mesh mesh; float3 base_color, highlight_color; };
-struct gizmo_renderable { geometry_mesh mesh; float3 color; };
+struct gizmo_mesh_component { geometry_mesh mesh; float4 base_color, highlight_color; };
+struct gizmo_renderable { geometry_mesh mesh; float4 color; };
 
 struct ray { float3 origin, direction; };
 inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
@@ -227,7 +227,7 @@ geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, c
     return mesh;
 }
 
-geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices, std::initializer_list<float2> points)
+geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices, const std::vector<float2> & points)
 {
     geometry_mesh mesh;
     for (int i = 0; i <= slices; ++i)
@@ -301,22 +301,22 @@ struct gizmo_context::gizmo_context_impl
 
 gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx(ctx)
 {
-    std::initializer_list<float2> arrow_points  = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
-    std::initializer_list<float2> mace_points   = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
-    std::initializer_list<float2> ring_points   = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
-    mesh_components[interact::translate_x]      = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f }, { 1,0,0 } };
-    mesh_components[interact::translate_y]      = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f }, { 0,1,0 } };
-    mesh_components[interact::translate_z]      = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1 }, { 0,0,1 } };
-    mesh_components[interact::translate_yz]     = { make_box_geometry({ -0.01f,0.25,0.25 },{ 0.01f,0.75f,0.75f }), { 0.5f,1,1 }, { 0,1,1 } };
-    mesh_components[interact::translate_zx]     = { make_box_geometry({ 0.25,-0.01f,0.25 },{ 0.75f,0.01f,0.75f }), { 1,0.5f,1 }, { 1,0,1 } };
-    mesh_components[interact::translate_xy]     = { make_box_geometry({ 0.25,0.25,-0.01f },{ 0.75f,0.75f,0.01f }), { 1,1,0.5f }, { 1,1,0} };
-    mesh_components[interact::translate_xyz]    = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f },{ 1,1,1 } };
-    mesh_components[interact::rotate_x]         = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points), { 1, 0.5f, 0.5f }, { 1, 0, 0} };
-    mesh_components[interact::rotate_y]         = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points), { 0.5f,1,0.5f }, { 0,1,0 } };
-    mesh_components[interact::rotate_z]         = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points), { 0.5f,0.5f,1}, { 0,0,1 } };
-    mesh_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 4, mace_points),{ 1,0.5f,0.5f },{ 1,0,0 } };
-    mesh_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 4, mace_points),{ 0.5f,1,0.5f },{ 0,1,0 } };
-    mesh_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1 },{ 0,0,1 } };
+    std::vector<float2> arrow_points            = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
+    std::vector<float2> mace_points             = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
+    std::vector<float2> ring_points             = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
+    mesh_components[interact::translate_x]      = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f, 1.f }, { 1,0,0, 1.f } };
+    mesh_components[interact::translate_y]      = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
+    mesh_components[interact::translate_z]      = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
+    mesh_components[interact::translate_yz]     = { make_box_geometry({ -0.01f,0.25,0.25 },{ 0.01f,0.75f,0.75f }), { 0.5f,1,1, 0.5f }, { 0,1,1, 0.6f } };
+    mesh_components[interact::translate_zx]     = { make_box_geometry({ 0.25,-0.01f,0.25 },{ 0.75f,0.01f,0.75f }), { 1,0.5f,1, 0.5f }, { 1,0,1, 0.6f } };
+    mesh_components[interact::translate_xy]     = { make_box_geometry({ 0.25,0.25,-0.01f },{ 0.75f,0.75f,0.01f }), { 1,1,0.5f, 0.5f }, { 1,1,0, 0.6f } };
+    mesh_components[interact::translate_xyz]    = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f, 0.25f },{ 1,1,1, 0.35f } };
+    mesh_components[interact::rotate_x]         = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points), { 1, 0.5f, 0.5f, 1.f }, { 1, 0, 0, 1.f } };
+    mesh_components[interact::rotate_y]         = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
+    mesh_components[interact::rotate_z]         = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
+    mesh_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 4, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
+    mesh_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 4, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
+    mesh_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
 }
 
 ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
@@ -580,7 +580,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
         gizmo_renderable r;
         r.mesh = geo;
-        r.color = float3(1, 1, 1);
+        r.color = float4(1);
         for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position);
         g.drawlist.push_back(r);
 
