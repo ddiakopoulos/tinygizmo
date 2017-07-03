@@ -4,20 +4,20 @@
   <img src="https://raw.githubusercontent.com/ddiakopoulos/tinygizmo/master/preview.png"/>
 </p>
 
-This project is a lightweight, self-contained library for immediate-mode gizmo editing. It includes gizmos for translation, rotation, and scale. Implemented in C++11, the library does not perform rendering directly and instead provides a per-frame buffer of world-space triangles.
+This project is a lightweight, self-contained library for immediate-mode gizmo editing as commonly found in many game engines. It includes mechanisms for manipulating a 3d object's position, rotation, and scale. Implemented in C++11, the library does not perform rendering directly and instead provides a per-frame buffer of world-space triangles. 
 
-An included example illustrates a rendering and key/mouse implementation using GLFW with an OpenGL 3.3 context. Known limitations include hardcoded assumptions about a right-handed, Y-up coordinate system. 
+An included example illustrates a rendering and key/mouse implementation using GLFW with an OpenGL 3.3 context. Known limitations include hardcoded assumptions about a right-handed, Y-up coordinate system. The gizmos are provided with vertex normals, although the example does not perform any fancy shading. Furthermore, mouse-drag with certain gizmos at extreme interaction grazing angles is known to provide anomalous output. 
 
 # Motivation
 
-This project was born out of frustrations with other immediate-mode gizmo implementations. Instead of 4x4 matrices and euler angles, the library exposes a `rigid_transform` struct consisting of a position, rotation quaternion, and scale.
+This project was born out of mild frustration with other immediate-mode gizmo libraries. Instead of 4x4 matrices and euler angles, the library exposes a `rigid_transform` consisting of a 3d position, rotation quaternion, and scale. The library is implemented in around 1100 lines of code, which also includes a complete 3d math library in ~600 LoC - [linalg.h](https://github.com/sgorsten/linalg). Alternatives include [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) and [Im3D](https://github.com/john-chapman/im3d). Tinygizmo fits in-between these projects by being fully self-contained (no dependency on Dear ImGui), and by being provided in the public domain. 
 
 # Features
-* Both global and local transform modes for the translational and rotational gizmos
+* Both global and local transform modes for translational and rotational gizmos
 * Snap-to-unit (both linear and angular)
   * Set any of the `snap_` values in the `interaction_state` struct. 
 * VR ready (the user must call `update(...)` and `draw()` for each eye)
-* Hotkeys for transitioning between translation, rotation, and scaling
+* Hotkeys for transitioning between translation, rotation, and scaling:
   * `ctrl-t` to activate the translation gizmo
   * `ctrl-r` to activate the rotation gizmo
   * `ctrl-s` to activate the scale gizmo
@@ -25,7 +25,7 @@ This project was born out of frustrations with other immediate-mode gizmo implem
 
 # Attribution
 
-This project would not have been possible without the gizmo-math reference implementations in the public-domain [workbench](https://github.com/sgorsten/workbench) project. 
+This project would not have been possible without reference implementations in the public-domain [workbench](https://github.com/sgorsten/workbench) project. 
 
 # License 
 
