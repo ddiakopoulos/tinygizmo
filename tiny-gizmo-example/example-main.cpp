@@ -18,21 +18,26 @@ constexpr const char gizmo_vert[] = R"(#version 330
     layout(location = 1) in vec3 normal;
     layout(location = 2) in vec4 color;
     out vec4 v_color;
+    out vec3 v_world, v_normal;
     uniform mat4 u_mvp;
     void main()
     {
         gl_Position = u_mvp * vec4(vertex.xyz, 1);
         v_color = color;
+        v_world = vertex;
+        v_normal = normal;
     }
 )";
 
 constexpr const char gizmo_frag[] = R"(#version 330
     in vec4 v_color;
+    in vec3 v_world, v_normal;
     out vec4 f_color;
-
+    uniform vec3 u_eye;
     void main()
     {
-        f_color = v_color;
+        vec3 light = vec3(1) * max(dot(v_normal, normalize(u_eye - v_world)), 0.5);
+        f_color = v_color * vec4(light, 1);
     }
 )";
 
@@ -101,11 +106,12 @@ geometry_mesh make_teapot()
     return mesh;
 }
 
-void draw_mesh(GlShader & shader, GlMesh & mesh, const linalg::aliases::float4x4 & viewProj, const linalg::aliases::float4x4 & model)
+void draw_mesh(GlShader & shader, GlMesh & mesh, const linalg::aliases::float3 eye, const linalg::aliases::float4x4 & viewProj, const linalg::aliases::float4x4 & model)
 {
     linalg::aliases::float4x4 modelViewProjectionMatrix = mul(viewProj, model);
     shader.bind();
     shader.uniform("u_mvp", modelViewProjectionMatrix);
+    shader.uniform("u_eye", eye);
     mesh.draw_elements();
     shader.unbind();
 }
@@ -170,7 +176,7 @@ int main(int argc, char * argv[])
     gizmo_ctx.render = [&](const geometry_mesh & r)
     {
         upload_mesh(r, gizmoEditorMesh);
-        draw_mesh(wireframeShader, gizmoEditorMesh, cam.get_viewproj_matrix((float) windowSize.x / (float) windowSize.y), identity4x4);
+        draw_mesh(wireframeShader, gizmoEditorMesh, cam.position, cam.get_viewproj_matrix((float) windowSize.x / (float) windowSize.y), identity4x4);
     };
 
     win->on_key = [&](int key, int action, int mods)
@@ -230,7 +236,6 @@ int main(int argc, char * argv[])
 
         glViewport(0, 0, windowSize.x, windowSize.y);
 
-        glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -247,6 +252,7 @@ int main(int argc, char * argv[])
         gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
   
+        glDisable(GL_CULL_FACE);
         auto teapotModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
         draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix);
 

@@ -72,6 +72,7 @@ struct ray { float3 origin, direction; };
 inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
 inline ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
 inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
+inline float3 transform_vector(const float4x4 & transform, const float3 & vector) { return mul(transform, float4(vector, 0)).xyz(); }
 
 struct rect
 {
@@ -155,17 +156,40 @@ ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera
 
 void compute_normals(geometry_mesh & mesh)
 {
-    for (geometry_vertex & v : mesh.vertices) v.normal = float3();
+    static const double NORMAL_EPSILON = 0.0001;
+
+    std::vector<uint32_t> uniqueVertIndices(mesh.vertices.size(), 0);
+    for (uint32_t i = 0; i < uniqueVertIndices.size(); ++i)
+    {
+        if (uniqueVertIndices[i] == 0)
+        {
+            uniqueVertIndices[i] = i + 1;
+            const float3 v0 = mesh.vertices[i].position;
+            for (auto j = i + 1; j < mesh.vertices.size(); ++j)
+            {
+                const float3 v1 = mesh.vertices[j].position;
+                if (length2(v1 - v0) < NORMAL_EPSILON)
+                {
+                    uniqueVertIndices[j] = uniqueVertIndices[i];
+                }
+            }
+        }
+    }
+
+    uint32_t idx0, idx1, idx2;
     for (auto & t : mesh.triangles)
     {
-        geometry_vertex & v0 = mesh.vertices[t.x], &v1 = mesh.vertices[t.y], &v2 = mesh.vertices[t.z];
+        idx0 = uniqueVertIndices[t.x] - 1;
+        idx1 = uniqueVertIndices[t.y] - 1;
+        idx2 = uniqueVertIndices[t.z] - 1;
+
+        geometry_vertex & v0 = mesh.vertices[idx0], &v1 = mesh.vertices[idx1], &v2 = mesh.vertices[idx2];
         const float3 n = cross(v1.position - v0.position, v2.position - v0.position);
         v0.normal += n; v1.normal += n; v2.normal += n;
     }
-    for (geometry_vertex & v : mesh.vertices)
-    {
-        v.normal = normalize(v.normal);
-    }
+
+    for (uint32_t i = 0; i < mesh.vertices.size(); ++i) mesh.vertices[i].normal = mesh.vertices[uniqueVertIndices[i] - 1].normal;
+    for (geometry_vertex & v : mesh.vertices) v.normal = normalize(v.normal);
 }
 
 geometry_mesh make_box_geometry(const float3 & min_bounds, const float3 & max_bounds)
@@ -234,8 +258,7 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
     {
         const float angle = (static_cast<float>(i % slices) * tau / slices) + (tau/8.f), c = std::cos(angle), s = std::sin(angle);
         const float3x2 mat = { axis, arm1 * c + arm2 * s };
-        float3 n = normalize(mat.y); // TODO: Proper normals for each segment
-        for (auto & p : points) mesh.vertices.push_back({ mul(mat, p), n });
+        for (auto & p : points) mesh.vertices.push_back({ mul(mat, p), float3(0.f) });
 
         if (i > 0)
         {
@@ -302,7 +325,7 @@ struct gizmo_context::gizmo_context_impl
 gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx(ctx)
 {
     std::vector<float2> arrow_points            = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
-    std::vector<float2> mace_points             = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0.0f } };
+    std::vector<float2> mace_points             = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0 } };
     std::vector<float2> ring_points_x           = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
     std::vector<float2> ring_points_y           = { { +0.025f, 1.01f },{ -0.025f, 1.01f },{ -0.025f, 1.01f },{ -0.025f, 1.11f },{ -0.025f, 1.11f },{ +0.025f, 1.11f },{ +0.025f, 1.11f },{ +0.025f, 1.01f } };
     std::vector<float2> ring_points_z           = { { +0.025f, 0.99f },{ -0.025f, 0.99f },{ -0.025f, 0.99f },{ -0.025f, 1.09f },{ -0.025f, 1.09f },{ +0.025f, 1.09f },{ +0.025f, 1.09f },{ +0.025f, 0.99f } };
@@ -316,9 +339,9 @@ gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx
     mesh_components[interact::rotate_x]         = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points_x), { 1, 0.5f, 0.5f, 1.f }, { 1, 0, 0, 1.f } };
     mesh_components[interact::rotate_y]         = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points_y), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
     mesh_components[interact::rotate_z]         = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points_z), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
-    mesh_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 4, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
-    mesh_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 4, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
-    mesh_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 4, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
+    mesh_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
+    mesh_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
+    mesh_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
 }
 
 ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
@@ -506,7 +529,11 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
         gizmo_renderable r;
         r.mesh = g.mesh_components[c].mesh;
         r.color = (c == g.interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
-        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices)
+        {
+            v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+            v.normal = transform_vector(model, v.normal);
+        }
         g.drawlist.push_back(r);
     }
 }
@@ -564,7 +591,11 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         gizmo_renderable r;
         r.mesh = g.mesh_components[c].mesh;
         r.color = (c == g.interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
-        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices)
+        {
+            v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+            v.normal = transform_vector(model, v.normal);
+        }
         g.drawlist.push_back(r);
     }
 
@@ -578,12 +609,16 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
         // Ad-hoc geometry
         std::initializer_list<float2> arrow_points = { { 0.0f, 0.f },{ 0.0f, 0.05f },{ 0.8f, 0.05f },{ 0.9f, 0.10f },{ 1.0f, 0 } };
-        auto geo = make_lathed_geometry(yDir, xDir, zDir, 16, arrow_points);
+        auto geo = make_lathed_geometry(yDir, xDir, zDir, 32, arrow_points);
 
         gizmo_renderable r;
         r.mesh = geo;
         r.color = float4(1);
-        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position);
+        for (auto & v : r.mesh.vertices)
+        {
+            v.position = transform_coord(model, v.position);
+            v.normal = transform_vector(model, v.normal);
+        }
         g.drawlist.push_back(r);
 
         orientation = qmul(p.orientation, g.original_orientation);
@@ -673,7 +708,11 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
         gizmo_renderable r;
         r.mesh = g.mesh_components[c].mesh;
         r.color = (c == g.interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
-        for (auto & v : r.mesh.vertices) v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+        for (auto & v : r.mesh.vertices)
+        {
+            v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
+            v.normal = transform_vector(model, v.normal);
+        }
         g.drawlist.push_back(r);
     }
 }
