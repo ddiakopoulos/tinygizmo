@@ -3,8 +3,8 @@
 
 #pragma once
 
-#ifndef gizmin_example_util_hpp
-#define gizmin_example_util_hpp
+#ifndef tinygizmo_example_util_hpp
+#define tinygizmo_example_util_hpp
 
 #include <functional>
 #include <vector>
@@ -34,59 +34,6 @@ struct camera
     linalg::aliases::float4x4 get_viewproj_matrix(const float aspectRatio) const { return mul(get_projection_matrix(aspectRatio), get_view_matrix()); }
 };
 
-struct InputEvent
-{
-    enum Type { CURSOR, MOUSE, KEY, CHAR, SCROLL };
-
-    GLFWwindow * window;
-    linalg::aliases::int2 windowSize;
-
-    Type type;
-    int action;
-    int mods;
-
-    linalg::aliases::float2 cursor;
-    bool drag = false;
-
-    linalg::aliases::uint2 value; // button, key, codepoint, scrollX, scrollY
-
-    bool is_down() const { return action != GLFW_RELEASE; }
-    bool is_up() const { return action == GLFW_RELEASE; }
-
-    bool using_shift_key() const { return mods & GLFW_MOD_SHIFT; };
-    bool using_control_key() const { return mods & GLFW_MOD_CONTROL; };
-    bool using_alt_key() const { return mods & GLFW_MOD_ALT; };
-    bool using_super_key() const { return mods & GLFW_MOD_SUPER; };
-};
-
-static InputEvent make_input_event(GLFWwindow * window, InputEvent::Type type, const linalg::aliases::float2 cursor, int action)
-{
-    static bool isDragging = false;
-
-    InputEvent e;
-    e.window = window;
-    e.type = type;
-    e.cursor = cursor;
-    e.action = action;
-    e.mods = 0;
-
-    glfwGetWindowSize(window, &e.windowSize.x, &e.windowSize.y);
-
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) | glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT)) e.mods |= GLFW_MOD_SHIFT;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) | glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL)) e.mods |= GLFW_MOD_CONTROL;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) | glfwGetKey(window, GLFW_KEY_RIGHT_ALT)) e.mods |= GLFW_MOD_ALT;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SUPER) | glfwGetKey(window, GLFW_KEY_RIGHT_SUPER)) e.mods |= GLFW_MOD_SUPER;
-
-    if (type == InputEvent::MOUSE)
-    {
-        if (e.is_down()) isDragging = true;
-        else if (e.is_up()) isDragging = false;
-    }
-    e.drag = isDragging;
-
-    return e;
-}
-
 class Window
 {
     GLFWwindow * window;
@@ -96,7 +43,6 @@ public:
     std::function<void(int button, int action, int mods)> on_mouse_button;
     std::function<void(linalg::aliases::float2 pos)> on_cursor_pos;
     std::function<void(int numFiles, const char ** paths)> on_drop;
-    std::function<void(InputEvent e)> on_input;
 
     Window(int width, int height, const char * title)
     {
@@ -158,4 +104,4 @@ public:
     void close() { glfwSetWindowShouldClose(window, 1); }
 };
 
-#endif // end gizmin_example_util_hpp
+#endif // end tinygizmo_example_util_hpp
