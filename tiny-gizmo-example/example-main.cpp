@@ -36,7 +36,7 @@ constexpr const char gizmo_frag[] = R"(#version 330
     uniform vec3 u_eye;
     void main()
     {
-        vec3 light = vec3(1) * max(dot(v_normal, normalize(u_eye - v_world)), 0.5);
+        vec3 light = vec3(1) * max(dot(v_normal, normalize(u_eye - v_world)), 0.50) + 0.25;
         f_color = v_color * vec4(light, 1);
     }
 )";
