@@ -9,6 +9,7 @@
 #include <iostream>
 #include <functional>
 #include <map>
+#include <string>
 
 using namespace minalg;
 using namespace tinygizmo;
@@ -292,6 +293,16 @@ enum class interact
     scale_xyz
 };
 
+struct interaction_state
+{
+    bool active{ false };                   // Flag to indicate if the gizmo is being actively manipulated
+    float3 original_position;               // Original position of an object being manipulated with a gizmo
+    float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
+    float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
+    float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
+    interact interaction_mode;              // Currently active component
+};
+
 struct gizmo_context::gizmo_context_impl
 {
     gizmo_context * ctx;
@@ -301,16 +312,12 @@ struct gizmo_context::gizmo_context_impl
     std::map<interact, gizmo_mesh_component> mesh_components;
     std::vector<gizmo_renderable> drawlist;
 
-    interact interaction_mode;
     transform_mode mode{ transform_mode::translate };
 
-    std::map<uint32_t, bool> active;
+    std::map<uint32_t, interaction_state> gizmos;
 
-    gizmo_application_state active_state, last_state;
-    float3 original_position;               // Original position of an object being manipulated with a gizmo
-    float4 original_orientation;            // Original orientation of an object being manipulated with a gizmo
-    float3 original_scale;                  // Original scale of an object being manipulated with a gizmo
-    float3 click_offset;                    // Offset from position of grabbed object to coordinates of clicked point
+    gizmo_application_state active_state;
+    gizmo_application_state last_state;
     bool local_toggle{ true };              // State to describe if the gizmo should use transform-local math
     bool has_clicked{ false };              // State to describe if the user has pressed the left mouse button during the last frame
     bool has_released{ false };             // State to describe if the user has released the left mouse button during the last frame
@@ -334,9 +341,9 @@ gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx
     mesh_components[interact::translate_zx]     = { make_box_geometry({ 0.25,-0.01f,0.25 },{ 0.75f,0.01f,0.75f }), { 1,0.5f,1, 0.5f }, { 1,0,1, 0.6f } };
     mesh_components[interact::translate_xy]     = { make_box_geometry({ 0.25,0.25,-0.01f },{ 0.75f,0.75f,0.01f }), { 1,1,0.5f, 0.5f }, { 1,1,0, 0.6f } };
     mesh_components[interact::translate_xyz]    = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f, 0.25f },{ 1,1,1, 0.35f } };
-    mesh_components[interact::rotate_x]         = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 64, ring_points, 0.003f), { 1, 0.5f, 0.5f, 1.f }, { 1, 0, 0, 1.f } };
-    mesh_components[interact::rotate_y]         = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 64, ring_points, -0.003f), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
-    mesh_components[interact::rotate_z]         = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 64, ring_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
+    mesh_components[interact::rotate_x]         = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points, 0.003f), { 1, 0.5f, 0.5f, 1.f }, { 1, 0, 0, 1.f } };
+    mesh_components[interact::rotate_y]         = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points, -0.003f), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
+    mesh_components[interact::rotate_z]         = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
     mesh_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
     mesh_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
     mesh_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
@@ -377,20 +384,22 @@ void gizmo_context::gizmo_context_impl::draw()
 // Private Gizmo Implementations //
 ///////////////////////////////////
 
-void axis_rotation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, const float4 & start_orientation, float4 & orientation)
+void axis_rotation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, const float4 & start_orientation, float4 & orientation)
 {
+    interaction_state & interaction = g.gizmos[id];
+
     if (g.active_state.mouse_left)
     {
-        rigid_transform original_pose = { start_orientation, g.original_position };
+        rigid_transform original_pose = { start_orientation, interaction.original_position };
         float3 the_axis = original_pose.transform_vector(axis);
-        float4 the_plane = { the_axis, -dot(the_axis, g.click_offset) };
+        float4 the_plane = { the_axis, -dot(the_axis, interaction.click_offset) };
         const ray r = g.get_ray_from_cursor(g.active_state.cam);
 
         float t;
         if (intersect_ray_plane(r, the_plane, &t))
         {
-            float3 center_of_rotation = g.original_position + the_axis * dot(the_axis, g.click_offset - g.original_position);
-            float3 arm1 = normalize(g.click_offset - center_of_rotation);
+            float3 center_of_rotation = interaction.original_position + the_axis * dot(the_axis, interaction.click_offset - interaction.original_position);
+            float3 arm1 = normalize(interaction.click_offset - center_of_rotation);
             float3 arm2 = normalize(r.origin + r.direction * t - center_of_rotation);
 
             float d = dot(arm1, arm2);
@@ -413,15 +422,17 @@ void axis_rotation_dragger(gizmo_context::gizmo_context_impl & g, const float3 &
     }
 }
 
-void plane_translation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & plane_normal, float3 & point)
+void plane_translation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl & g, const float3 & plane_normal, float3 & point)
 {
+    interaction_state & interaction = g.gizmos[id];
+
     // Mouse clicked
-    if (g.has_clicked) g.original_position = point; 
+    if (g.has_clicked) interaction.original_position = point;
 
     if (g.active_state.mouse_left)
     {
         // Define the plane to contain the original position of the object
-        const float3 plane_point = g.original_position;
+        const float3 plane_point = interaction.original_position;
 
         // Define a ray emitting from the camera underneath the cursor
         const ray ray = g.get_ray_from_cursor(g.active_state.cam);
@@ -439,17 +450,19 @@ void plane_translation_dragger(gizmo_context::gizmo_context_impl & g, const floa
     }
 }
 
-void axis_translation_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, float3 & point)
+void axis_translation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl & g, const float3 & axis, float3 & point)
 {
+    interaction_state & interaction = g.gizmos[id];
+
     if (g.active_state.mouse_left)
     {
         // First apply a plane translation dragger with a plane that contains the desired axis and is oriented to face the camera
         const float3 plane_tangent = cross(axis, point - g.active_state.cam.position);
         const float3 plane_normal = cross(axis, plane_tangent);
-        plane_translation_dragger(g, plane_normal, point);
+        plane_translation_dragger(id, g, plane_normal, point);
 
         // Constrain object motion to be along the desired axis
-        point = g.original_position + axis * dot(point - g.original_position, axis);
+        point = interaction.original_position + axis * dot(point - interaction.original_position, axis);
     }
 }
 
@@ -467,51 +480,51 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
 {
     auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), position);
 
-    auto h = hash_fnv1a(name);
+    const uint32_t id = hash_fnv1a(name);
 
     if (g.has_clicked)
     {
-        g.interaction_mode = interact::none;
+        g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
 
         float best_t = std::numeric_limits<float>::infinity(), t;
-        if (intersect(g, ray, interact::translate_x, t, best_t))   { g.interaction_mode = interact::translate_x;   best_t = t; }
-        if (intersect(g, ray, interact::translate_y, t, best_t))   { g.interaction_mode = interact::translate_y;   best_t = t; }
-        if (intersect(g, ray, interact::translate_z, t, best_t))   { g.interaction_mode = interact::translate_z;   best_t = t; }
-        if (intersect(g, ray, interact::translate_yz, t, best_t))  { g.interaction_mode = interact::translate_yz;  best_t = t; }
-        if (intersect(g, ray, interact::translate_zx, t, best_t))  { g.interaction_mode = interact::translate_zx;  best_t = t; }
-        if (intersect(g, ray, interact::translate_xy, t, best_t))  { g.interaction_mode = interact::translate_xy;  best_t = t; }
-        if (intersect(g, ray, interact::translate_xyz, t, best_t)) { g.interaction_mode = interact::translate_xyz; best_t = t; }
+        if (intersect(g, ray, interact::translate_x, t, best_t))   { g.gizmos[id].interaction_mode = interact::translate_x;   best_t = t; }
+        if (intersect(g, ray, interact::translate_y, t, best_t))   { g.gizmos[id].interaction_mode = interact::translate_y;   best_t = t; }
+        if (intersect(g, ray, interact::translate_z, t, best_t))   { g.gizmos[id].interaction_mode = interact::translate_z;   best_t = t; }
+        if (intersect(g, ray, interact::translate_yz, t, best_t))  { g.gizmos[id].interaction_mode = interact::translate_yz;  best_t = t; }
+        if (intersect(g, ray, interact::translate_zx, t, best_t))  { g.gizmos[id].interaction_mode = interact::translate_zx;  best_t = t; }
+        if (intersect(g, ray, interact::translate_xy, t, best_t))  { g.gizmos[id].interaction_mode = interact::translate_xy;  best_t = t; }
+        if (intersect(g, ray, interact::translate_xyz, t, best_t)) { g.gizmos[id].interaction_mode = interact::translate_xyz; best_t = t; }
 
-        if (g.interaction_mode != interact::none)
+        if (g.gizmos[id].interaction_mode != interact::none)
         {
-            g.click_offset = g.local_toggle ? p.transform_vector(ray.origin + ray.direction*t) : ray.origin + ray.direction*t;
-            g.active[h] = true;
+            g.gizmos[id].click_offset = g.local_toggle ? p.transform_vector(ray.origin + ray.direction*t) : ray.origin + ray.direction*t;
+            g.gizmos[id].active = true;
         }
-        else g.active[h] = false;
+        else g.gizmos[id].active = false;
     }
 
     std::vector<float3> axes;
     if (g.local_toggle) axes = { qxdir(p.orientation), qydir(p.orientation), qzdir(p.orientation) };
     else axes = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
 
-    if (g.active[h])
+    if (g.gizmos[id].active)
     {
-        position += g.click_offset;
-        switch (g.interaction_mode)
+        position += g.gizmos[id].click_offset;
+        switch (g.gizmos[id].interaction_mode)
         {
-        case interact::translate_x: axis_translation_dragger(g, axes[0], position); break;
-        case interact::translate_y: axis_translation_dragger(g, axes[1], position); break;
-        case interact::translate_z: axis_translation_dragger(g, axes[2], position); break;
-        case interact::translate_yz: plane_translation_dragger(g, axes[0], position); break;
-        case interact::translate_zx: plane_translation_dragger(g, axes[1], position); break;
-        case interact::translate_xy: plane_translation_dragger(g, axes[2], position); break;
-        case interact::translate_xyz: plane_translation_dragger(g, -minalg::qzdir(g.active_state.cam.orientation), position); break;
+        case interact::translate_x: axis_translation_dragger(id, g, axes[0], position); break;
+        case interact::translate_y: axis_translation_dragger(id, g, axes[1], position); break;
+        case interact::translate_z: axis_translation_dragger(id, g, axes[2], position); break;
+        case interact::translate_yz: plane_translation_dragger(id, g, axes[0], position); break;
+        case interact::translate_zx: plane_translation_dragger(id, g, axes[1], position); break;
+        case interact::translate_xy: plane_translation_dragger(id, g, axes[2], position); break;
+        case interact::translate_xyz: plane_translation_dragger(id, g, -minalg::qzdir(g.active_state.cam.orientation), position); break;
         }
-        position -= g.click_offset;
+        position -= g.gizmos[id].click_offset;
     }
 
-    if (g.has_released) g.interaction_mode = interact::none;
+    if (g.has_released) g.gizmos[id].interaction_mode = interact::none;
 
     std::vector<interact> draw_interactions
     {
@@ -526,7 +539,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
     {
         gizmo_renderable r;
         r.mesh = g.mesh_components[c].mesh;
-        r.color = (c == g.interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
+        r.color = (c == g.gizmos[id].interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
@@ -540,55 +553,55 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 {
     assert(length2(orientation) > float(1e-6));
 
-    auto h = hash_fnv1a(name);
+    const uint32_t id = hash_fnv1a(name);
 
     auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center); // Orientation is local by default
 
     if (g.has_clicked)
     {
-        g.interaction_mode = interact::none;
+        g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         float best_t = std::numeric_limits<float>::infinity(), t;
 
-        if (intersect(g, ray, interact::rotate_x, t, best_t)) { g.interaction_mode = interact::rotate_x; best_t = t; }
-        if (intersect(g, ray, interact::rotate_y, t, best_t)) { g.interaction_mode = interact::rotate_y; best_t = t; }
-        if (intersect(g, ray, interact::rotate_z, t, best_t)) { g.interaction_mode = interact::rotate_z; best_t = t; }
+        if (intersect(g, ray, interact::rotate_x, t, best_t)) { g.gizmos[id].interaction_mode = interact::rotate_x; best_t = t; }
+        if (intersect(g, ray, interact::rotate_y, t, best_t)) { g.gizmos[id].interaction_mode = interact::rotate_y; best_t = t; }
+        if (intersect(g, ray, interact::rotate_z, t, best_t)) { g.gizmos[id].interaction_mode = interact::rotate_z; best_t = t; }
 
-        if (g.interaction_mode != interact::none)
+        if (g.gizmos[id].interaction_mode != interact::none)
         {
-            g.original_position = center;
-            g.original_orientation = orientation;
-            g.click_offset = p.transform_point(ray.origin + ray.direction * t);
-            g.active[h] = true;
+            g.gizmos[id].original_position = center;
+            g.gizmos[id].original_orientation = orientation;
+            g.gizmos[id].click_offset = p.transform_point(ray.origin + ray.direction * t);
+            g.gizmos[id].active = true;
         }
-        else g.active[h] = false;
+        else g.gizmos[id].active = false;
     }
 
     float3 activeAxis;
-    if (g.active[h])
+    if (g.gizmos[id].active)
     {
-        const float4 starting_orientation = g.local_toggle ? g.original_orientation : float4(0, 0, 0, 1);
-        switch (g.interaction_mode)
+        const float4 starting_orientation = g.local_toggle ? g.gizmos[id].original_orientation : float4(0, 0, 0, 1);
+        switch (g.gizmos[id].interaction_mode)
         {
-        case interact::rotate_x: axis_rotation_dragger(g, { 1, 0, 0 }, center, starting_orientation, p.orientation); activeAxis = { 1, 0, 0 }; break;
-        case interact::rotate_y: axis_rotation_dragger(g, { 0, 1, 0 }, center, starting_orientation, p.orientation); activeAxis = { 0, 1, 0 }; break;
-        case interact::rotate_z: axis_rotation_dragger(g, { 0, 0, 1 }, center, starting_orientation, p.orientation); activeAxis = { 0, 0, 1 }; break;
+        case interact::rotate_x: axis_rotation_dragger(id, g, { 1, 0, 0 }, center, starting_orientation, p.orientation); activeAxis = { 1, 0, 0 }; break;
+        case interact::rotate_y: axis_rotation_dragger(id, g, { 0, 1, 0 }, center, starting_orientation, p.orientation); activeAxis = { 0, 1, 0 }; break;
+        case interact::rotate_z: axis_rotation_dragger(id, g, { 0, 0, 1 }, center, starting_orientation, p.orientation); activeAxis = { 0, 0, 1 }; break;
         }
     }
 
-    if (g.has_released) g.interaction_mode = interact::none;
+    if (g.has_released) g.gizmos[id].interaction_mode = interact::none;
 
     const auto model = p.matrix();
 
     std::vector<interact> draw_interactions;
-    if (!g.local_toggle && g.interaction_mode != interact::none) draw_interactions = { g.interaction_mode };
+    if (!g.local_toggle && g.gizmos[id].interaction_mode != interact::none) draw_interactions = { g.gizmos[id].interaction_mode };
     else draw_interactions = { interact::rotate_x, interact::rotate_y, interact::rotate_z };
 
     for (auto c : draw_interactions)
     {
         gizmo_renderable r;
         r.mesh = g.mesh_components[c].mesh;
-        r.color = (c == g.interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
+        r.color = (c == g.gizmos[id].interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
@@ -599,10 +612,12 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
     // For non-local transformations, we only present one rotation ring 
     // and draw an arrow from the center of the gizmo to indicate the degree of rotation
-    if (g.local_toggle == false && g.interaction_mode != interact::none)
+    if (g.local_toggle == false && g.gizmos[id].interaction_mode != interact::none)
     {
+        interaction_state & interaction = g.gizmos[id];
+
         // Create orthonormal basis for drawing the arrow
-        float3 a = qrot(p.orientation, g.click_offset - g.original_position);
+        float3 a = qrot(p.orientation, interaction.click_offset - interaction.original_position);
         float3 zDir = normalize(activeAxis), xDir = normalize(cross(a, zDir)), yDir = cross(zDir, xDir);
 
         // Ad-hoc geometry
@@ -619,13 +634,15 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         }
         g.drawlist.push_back(r);
 
-        orientation = qmul(p.orientation, g.original_orientation);
+        orientation = qmul(p.orientation, interaction.original_orientation);
     }
-    else if (g.local_toggle == true && g.interaction_mode != interact::none) orientation = p.orientation;
+    else if (g.local_toggle == true && g.gizmos[id].interaction_mode != interact::none) orientation = p.orientation;
 }
 
-void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, const bool uniform)
+void axis_scale_dragger(const uint32_t & id, gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, float3 & scale, const bool uniform)
 {
+    interaction_state & interaction = g.gizmos[id];
+
     if (g.active_state.mouse_left)
     {
         const float3 plane_tangent = cross(axis, center - g.active_state.cam.position);
@@ -650,9 +667,9 @@ void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & ax
             distance = ray.origin + ray.direction * t;
         }
 
-        float3 offset_on_axis = (distance - g.click_offset) * axis;
+        float3 offset_on_axis = (distance - interaction.click_offset) * axis;
         flush_to_zero(offset_on_axis);
-        float3 new_scale = scale = g.original_scale + offset_on_axis;
+        float3 new_scale = interaction.original_scale + offset_on_axis;
 
         if (uniform) scale = float3(clamp(dot(distance, new_scale), 0.01f, 1000.f));
         else scale = float3(clamp(new_scale.x, 0.01f, 1000.f), clamp(new_scale.y, 0.01f, 1000.f), clamp(new_scale.z, 0.01f, 1000.f));
@@ -662,38 +679,38 @@ void axis_scale_dragger(gizmo_context::gizmo_context_impl & g, const float3 & ax
 
 void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float4 & orientation, const float3 & center, float3 & scale)
 {
-    auto h = hash_fnv1a(name);
+    const uint32_t id = hash_fnv1a(name);
 
     auto p = rigid_transform(orientation, center);
 
     if (g.has_clicked)
     {
-        g.interaction_mode = interact::none;
+        g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
         float best_t = std::numeric_limits<float>::infinity(), t;
 
-        if (intersect(g, ray, interact::scale_x, t, best_t)) { g.interaction_mode = interact::scale_x; best_t = t; }
-        if (intersect(g, ray, interact::scale_y, t, best_t)) { g.interaction_mode = interact::scale_y; best_t = t; }
-        if (intersect(g, ray, interact::scale_z, t, best_t)) { g.interaction_mode = interact::scale_z; best_t = t; }
+        if (intersect(g, ray, interact::scale_x, t, best_t)) { g.gizmos[id].interaction_mode = interact::scale_x; best_t = t; }
+        if (intersect(g, ray, interact::scale_y, t, best_t)) { g.gizmos[id].interaction_mode = interact::scale_y; best_t = t; }
+        if (intersect(g, ray, interact::scale_z, t, best_t)) { g.gizmos[id].interaction_mode = interact::scale_z; best_t = t; }
 
-        if (g.interaction_mode != interact::none)
+        if (g.gizmos[id].interaction_mode != interact::none)
         {
-            g.original_scale = scale;
-            g.click_offset = p.transform_point(ray.origin + ray.direction*t);
-            g.active[h] = true;
+            g.gizmos[id].original_scale = scale;
+            g.gizmos[id].click_offset = p.transform_point(ray.origin + ray.direction*t);
+            g.gizmos[id].active = true;
         }
-        else g.active[h] = false;
+        else g.gizmos[id].active = false;
     }
 
-    if (g.has_released) g.interaction_mode = interact::none;
+    if (g.has_released) g.gizmos[id].interaction_mode = interact::none;
 
-    if (g.active[h])
+    if (g.gizmos[id].active)
     {
-        switch (g.interaction_mode)
+        switch (g.gizmos[id].interaction_mode)
         {
-        case interact::scale_x: axis_scale_dragger(g, { 1,0,0 }, center, scale, g.active_state.hotkey_ctrl); break;
-        case interact::scale_y: axis_scale_dragger(g, { 0,1,0 }, center, scale, g.active_state.hotkey_ctrl); break;
-        case interact::scale_z: axis_scale_dragger(g, { 0,0,1 }, center, scale, g.active_state.hotkey_ctrl); break;
+        case interact::scale_x: axis_scale_dragger(id, g, { 1,0,0 }, center, scale, g.active_state.hotkey_ctrl); break;
+        case interact::scale_y: axis_scale_dragger(id, g, { 0,1,0 }, center, scale, g.active_state.hotkey_ctrl); break;
+        case interact::scale_z: axis_scale_dragger(id, g, { 0,0,1 }, center, scale, g.active_state.hotkey_ctrl); break;
         }
     }
 
@@ -705,7 +722,7 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
     {
         gizmo_renderable r;
         r.mesh = g.mesh_components[c].mesh;
-        r.color = (c == g.interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
+        r.color = (c == g.gizmos[id].interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(model, v.position); // transform local coordinates into worldspace

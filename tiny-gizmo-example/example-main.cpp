@@ -190,6 +190,7 @@ int main(int argc, char * argv[])
         if (key == GLFW_KEY_A) bl = (action != GLFW_RELEASE);
         if (key == GLFW_KEY_S) bb = (action != GLFW_RELEASE);
         if (key == GLFW_KEY_D) br = (action != GLFW_RELEASE);
+        if (key == GLFW_KEY_ESCAPE) win->close();
     };
 
     win->on_mouse_button = [&](int button, int action, int mods)
@@ -212,7 +213,11 @@ int main(int argc, char * argv[])
         lastCursor = gizmo_state.cursor;
     };
 
-    rigid_transform transform;
+    rigid_transform xform_a;
+    xform_a.position = { -2, 0, 0 };
+   
+    rigid_transform xform_b;
+    xform_b.position = { +2, 0, 0 };
 
     auto t0 = std::chrono::high_resolution_clock::now();
     while (!win->should_close())
@@ -253,18 +258,18 @@ int main(int argc, char * argv[])
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
   
         glDisable(GL_CULL_FACE);
-        auto teapotModelMatrix = reinterpret_cast<const linalg::aliases::float4x4 &>(transform.matrix());
-        draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix);
+        auto teapotModelMatrix_a = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_a.matrix());
+        draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_a);
+
+        auto teapotModelMatrix_b = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_b.matrix());
+        draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_b);
 
         glClear(GL_DEPTH_BUFFER_BIT);
 
         gizmo_ctx.update(gizmo_state);
-        transform_gizmo("xform-example-gizmo", gizmo_ctx, transform);
+        transform_gizmo("first-example-gizmo", gizmo_ctx, xform_a);
+        transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
         gizmo_ctx.draw();
-
-        //std::cout << "Position:    " << transform.position << std::endl;
-        //std::cout << "Orientation: " << transform.orientation << std::endl;
-        //std::cout << "Scale:       " << transform.scale << std::endl;
 
         gl_check_error(__FILE__, __LINE__);
 
