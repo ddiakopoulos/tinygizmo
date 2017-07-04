@@ -10,6 +10,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <chrono>
 
 using namespace minalg;
 using namespace tinygizmo;
@@ -121,13 +122,13 @@ bool intersect_ray_triangle(const ray & ray, const float3 & v0, const float3 & v
 bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit_t)
 {
     float best_t = std::numeric_limits<float>::infinity(), t;
-    int best_tri = -1;
+    int32_t best_tri = -1;
     for (auto & tri : mesh.triangles)
     {
         if (intersect_ray_triangle(ray, mesh.vertices[tri[0]].position, mesh.vertices[tri[1]].position, mesh.vertices[tri[2]].position, &t) && t < best_t)
         {
             best_t = t;
-            best_tri = &tri - mesh.triangles.data();
+            best_tri = uint32_t(&tri - mesh.triangles.data());
         }
     }
     if (best_tri == -1) return false;
@@ -217,7 +218,7 @@ geometry_mesh make_box_geometry(const float3 & min_bounds, const float3 & max_bo
     return mesh;
 }
 
-geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, int slices)
+geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, const float3 & arm2, uint32_t slices)
 {
     // Generated curved surface
     geometry_mesh mesh;
@@ -229,7 +230,7 @@ geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, c
         mesh.vertices.push_back({ arm, normalize(arm) });
         mesh.vertices.push_back({ arm + axis, normalize(arm) });
     }
-    for (uint32_t i = 0; i<slices; ++i)
+    for (uint32_t i = 0; i < slices; ++i)
     {
         mesh.triangles.push_back({ i * 2, i * 2 + 2, i * 2 + 3 });
         mesh.triangles.push_back({ i * 2, i * 2 + 3, i * 2 + 1 });
@@ -237,14 +238,14 @@ geometry_mesh make_cylinder_geometry(const float3 & axis, const float3 & arm1, c
 
     // Generate caps
     uint32_t base = (uint32_t) mesh.vertices.size();
-    for (uint32_t i = 0; i<slices; ++i)
+    for (uint32_t i = 0; i < slices; ++i)
     {
         const float angle = static_cast<float>(i%slices) * tau / slices, c = std::cos(angle), s = std::sin(angle);
         const float3 arm = arm1 * c + arm2 * s;
         mesh.vertices.push_back({ arm + axis, normalize(axis) });
         mesh.vertices.push_back({ arm, -normalize(axis) });
     }
-    for (uint32_t i = 2; i<slices; ++i)
+    for (uint32_t i = 2; i < slices; ++i)
     {
         mesh.triangles.push_back({ base, base + i * 2 - 2, base + i * 2 });
         mesh.triangles.push_back({ base + 1, base + i * 2 + 1, base + i * 2 - 1 });
@@ -263,12 +264,12 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
 
         if (i > 0)
         {
-            for (size_t j = 1; j < points.size(); ++j)
+            for (uint32_t j = 1; j < (uint32_t) points.size(); ++j)
             {
-                uint32_t i0 = (i - 1)*points.size() + (j - 1);
-                uint32_t i1 = (i - 0)*points.size() + (j - 1);
-                uint32_t i2 = (i - 0)*points.size() + (j - 0);
-                uint32_t i3 = (i - 1)*points.size() + (j - 0);
+                uint32_t i0 = (i - 1)* uint32_t(points.size()) + (j - 1);
+                uint32_t i1 = (i - 0)* uint32_t(points.size()) + (j - 1);
+                uint32_t i2 = (i - 0)* uint32_t(points.size()) + (j - 0);
+                uint32_t i3 = (i - 1)* uint32_t(points.size()) + (j - 0);
                 mesh.triangles.push_back({ i0,i1,i2 });
                 mesh.triangles.push_back({ i0,i2,i3 });
             }
@@ -370,7 +371,7 @@ void gizmo_context::gizmo_context_impl::draw()
         geometry_mesh r; // Combine all gizmo sub-meshes into one super-mesh
         for (auto & m : drawlist)
         {
-            uint32_t numVerts = r.vertices.size();
+            uint32_t numVerts = (uint32_t) r.vertices.size();
             auto it = r.vertices.insert(r.vertices.end(), m.mesh.vertices.begin(), m.mesh.vertices.end());
             for (auto & f : m.mesh.triangles) r.triangles.push_back({numVerts + f.x, numVerts + f.y, numVerts + f.z });
             for (; it != r.vertices.end(); ++it) it->color = m.color; // Take the color and shove it into a per-vertex attribute
