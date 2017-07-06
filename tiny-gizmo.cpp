@@ -385,6 +385,13 @@ void gizmo_context::gizmo_context_impl::draw()
 // Private Gizmo Implementations //
 ///////////////////////////////////
 
+// This will calculate a scale constant based on the number of screenspace pixels passed as pixel_scale.
+float scale_screenspace(gizmo_context::gizmo_context_impl & g, const float3 position, const float pixel_scale)
+{
+    float dist = length(position - g.active_state.cam.position);
+    return std::tan(g.active_state.cam.yfov) * dist * (pixel_scale / g.active_state.viewport_size.y);
+}
+
 void axis_rotation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, const float4 & start_orientation, float4 & orientation)
 {
     interaction_state & interaction = g.gizmos[id];
@@ -481,12 +488,16 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
 {
     auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), position);
 
+    const float scale = scale_screenspace(g, p.position, 80.f);
+
     const uint32_t id = hash_fnv1a(name);
 
     if (g.has_clicked)
     {
         g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        ray.origin /= scale;
+        ray.direction /= scale;
 
         float best_t = std::numeric_limits<float>::infinity(), t;
         if (intersect(g, ray, interact::translate_x, t, best_t))   { g.gizmos[id].interaction_mode = interact::translate_x;   best_t = t; }
@@ -496,6 +507,9 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
         if (intersect(g, ray, interact::translate_zx, t, best_t))  { g.gizmos[id].interaction_mode = interact::translate_zx;  best_t = t; }
         if (intersect(g, ray, interact::translate_xy, t, best_t))  { g.gizmos[id].interaction_mode = interact::translate_xy;  best_t = t; }
         if (intersect(g, ray, interact::translate_xyz, t, best_t)) { g.gizmos[id].interaction_mode = interact::translate_xyz; best_t = t; }
+
+        ray.origin *= scale;
+        ray.direction *= scale;
 
         if (g.gizmos[id].interaction_mode != interact::none)
         {
@@ -535,6 +549,9 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
     };
 
     float4x4 model = p.matrix();
+
+    auto scaleMat = scaling_matrix(float3(scale));
+    model = mul(model, scaleMat);
 
     for (auto c : draw_interactions)
     {

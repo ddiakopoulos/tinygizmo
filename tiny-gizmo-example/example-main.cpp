@@ -268,7 +268,7 @@ int main(int argc, char * argv[])
 
         gizmo_ctx.update(gizmo_state);
         transform_gizmo("first-example-gizmo", gizmo_ctx, xform_a);
-        transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
+        //transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
         gizmo_ctx.draw();
 
         gl_check_error(__FILE__, __LINE__);
