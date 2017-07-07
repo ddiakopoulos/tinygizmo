@@ -71,10 +71,19 @@ struct gizmo_mesh_component { geometry_mesh mesh; float4 base_color, highlight_c
 struct gizmo_renderable { geometry_mesh mesh; float4 color; };
 
 struct ray { float3 origin, direction; };
-inline ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
-inline ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
-inline float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
-inline float3 transform_vector(const float4x4 & transform, const float3 & vector) { return mul(transform, float4(vector, 0)).xyz(); }
+ray transform(const rigid_transform & p, const ray & r) { return{ p.transform_point(r.origin), p.transform_vector(r.direction) }; }
+ray detransform(const rigid_transform & p, const ray & r) { return{ p.detransform_point(r.origin), p.detransform_vector(r.direction) }; }
+float3 transform_coord(const float4x4 & transform, const float3 & coord) { auto r = mul(transform, float4(coord, 1)); return (r.xyz() / r.w); }
+float3 transform_vector(const float4x4 & transform, const float3 & vector) { return mul(transform, float4(vector, 0)).xyz(); }
+void transform(const float scale, ray & r) { r.origin *= scale; r.direction *= scale; }
+void detransform(const float scale, ray & r) { r.origin /= scale; r.direction /= scale; }
+
+// This will calculate a scale constant based on the number of screenspace pixels passed as pixel_scale.
+float scale_screenspace(gizmo_context::gizmo_context_impl & g, const float3 position, const float pixel_scale)
+{
+    float dist = length(position - g.active_state.cam.position);
+    return std::tan(g.active_state.cam.yfov) * dist * (pixel_scale / g.active_state.viewport_size.y);
+}
 
 struct rect
 {
@@ -385,13 +394,6 @@ void gizmo_context::gizmo_context_impl::draw()
 // Private Gizmo Implementations //
 ///////////////////////////////////
 
-// This will calculate a scale constant based on the number of screenspace pixels passed as pixel_scale.
-float scale_screenspace(gizmo_context::gizmo_context_impl & g, const float3 position, const float pixel_scale)
-{
-    float dist = length(position - g.active_state.cam.position);
-    return std::tan(g.active_state.cam.yfov) * dist * (pixel_scale / g.active_state.viewport_size.y);
-}
-
 void axis_rotation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl & g, const float3 & axis, const float3 & center, const float4 & start_orientation, float4 & orientation)
 {
     interaction_state & interaction = g.gizmos[id];
@@ -496,8 +498,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
     {
         g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
-        ray.origin /= scale;
-        ray.direction /= scale;
+        detransform(scale, ray);
 
         float best_t = std::numeric_limits<float>::infinity(), t;
         if (intersect(g, ray, interact::translate_x, t, best_t))   { g.gizmos[id].interaction_mode = interact::translate_x;   best_t = t; }
@@ -508,11 +509,10 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
         if (intersect(g, ray, interact::translate_xy, t, best_t))  { g.gizmos[id].interaction_mode = interact::translate_xy;  best_t = t; }
         if (intersect(g, ray, interact::translate_xyz, t, best_t)) { g.gizmos[id].interaction_mode = interact::translate_xyz; best_t = t; }
 
-        ray.origin *= scale;
-        ray.direction *= scale;
-
         if (g.gizmos[id].interaction_mode != interact::none)
         {
+
+            transform(scale, ray);
             g.gizmos[id].click_offset = g.local_toggle ? p.transform_vector(ray.origin + ray.direction*t) : ray.origin + ray.direction*t;
             g.gizmos[id].active = true;
         }
