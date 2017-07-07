@@ -13,6 +13,7 @@
 #include <functional>   // For std::function callbacks
 #include <memory>       // For std::unique_ptr
 #include <vector>       // For ... 
+#include <ostream>      // For overloads of operator<< to std::ostream& in the operator<< overloads provided by this library
 
 // Visual Studio versions prior to 2015 lack constexpr support
 #if defined(_MSC_VER) && _MSC_VER < 1900 && !defined(constexpr)
