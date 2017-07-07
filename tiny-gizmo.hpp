@@ -471,6 +471,7 @@ namespace tinygizmo
         bool hotkey_scale{ false };
         bool hotkey_local{ false };
         bool hotkey_ctrl{ false };
+        float screenspace_scale{ 0.f };     // If > 0.f, the gizmos are drawn scale-invariant with a screenspace value defined here
         float snap_translation{ 0.f };      // World-scale units used for snapping translation
         float snap_scale{ 0.f };            // World-scale units used for snapping scale
         float snap_rotation{ 0.f };         // Radians used for snapping rotation quaternions (i.e. PI/8 or PI/16)

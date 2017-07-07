@@ -10,12 +10,13 @@ An included example is built on top of GLFW (with an OpenGL 3.3 context). Known 
 
 # Motivation
 
-This project was born out of mild frustration with other immediate-mode gizmo libraries. Instead of 4x4 matrices and euler angles, the library exposes a `rigid_transform` consisting of a 3d position, rotation quaternion, and scale. The library is implemented in around 1100 lines of code, which also includes a complete 3d math library in ~400 LoC - [linalg.h](https://github.com/sgorsten/linalg). Alternatives include [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) and [Im3D](https://github.com/john-chapman/im3d). Tinygizmo fits in-between these projects by being fully self-contained (no dependency on Dear ImGui), and by being provided in the public domain. 
+This project was born out of mild frustration with other immediate-mode gizmo libraries. Instead of 4x4 matrices and euler angles, the library exposes a `rigid_transform` consisting of a 3d position, rotation quaternion, and scale. The library is implemented in around 1200 lines of code, which also includes a complete 3d math library in ~400 LoC - [linalg.h](https://github.com/sgorsten/linalg). Alternatives include [ImGuizmo](https://github.com/CedricGuillemet/ImGuizmo) and [Im3D](https://github.com/john-chapman/im3d). Tinygizmo fits in-between these projects by being fully self-contained (no dependency on Dear ImGui), and by being provided in the public domain. 
 
 # Features
-* Both global and local transform modes for translational and rotational gizmos
+* Both axis-aligned global and object-local transform modes for translational and rotational gizmos
+* Optional ability draw the gizmos with a constant screen-space scale
 * Snap-to-unit (both linear and angular)
-  * Set any of the `snap_` values in the `interaction_state` struct. 
+  * Set any of the `snap_` values in the `gizmo_application_state` struct. 
 * VR ready (the user must call `update(...)` and `draw()` for each eye)
 * Hotkeys for transitioning between translation, rotation, and scaling:
   * `ctrl-t` to activate the translation gizmo

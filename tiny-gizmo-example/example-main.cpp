@@ -256,6 +256,7 @@ int main(int argc, char * argv[])
         gizmo_state.cam.yfov = cam.yfov;
         gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
+        // gizmo_state.screenspace_scale = 80.f; // optional flag to draw the gizmos at a constant screen-space scale
   
         glDisable(GL_CULL_FACE);
         auto teapotModelMatrix_a = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_a.matrix());
@@ -268,7 +269,7 @@ int main(int argc, char * argv[])
 
         gizmo_ctx.update(gizmo_state);
         transform_gizmo("first-example-gizmo", gizmo_ctx, xform_a);
-        //transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
+        transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
         gizmo_ctx.draw();
 
         gl_check_error(__FILE__, __LINE__);

@@ -78,13 +78,6 @@ float3 transform_vector(const float4x4 & transform, const float3 & vector) { ret
 void transform(const float scale, ray & r) { r.origin *= scale; r.direction *= scale; }
 void detransform(const float scale, ray & r) { r.origin /= scale; r.direction /= scale; }
 
-// This will calculate a scale constant based on the number of screenspace pixels passed as pixel_scale.
-float scale_screenspace(gizmo_context::gizmo_context_impl & g, const float3 position, const float pixel_scale)
-{
-    float dist = length(position - g.active_state.cam.position);
-    return std::tan(g.active_state.cam.yfov) * dist * (pixel_scale / g.active_state.viewport_size.y);
-}
-
 struct rect
 {
     int x0, y0, x1, y1;
@@ -390,6 +383,20 @@ void gizmo_context::gizmo_context_impl::draw()
     last_state = active_state;
 }
 
+// This will calculate a scale constant based on the number of screenspace pixels passed as pixel_scale.
+float scale_screenspace(gizmo_context::gizmo_context_impl & g, const float3 position, const float pixel_scale)
+{
+    float dist = length(position - g.active_state.cam.position);
+    return std::tan(g.active_state.cam.yfov) * dist * (pixel_scale / g.active_state.viewport_size.y);
+}
+
+// The only purpose of this is readability: to reduce the total column width of the intersect(...) statements in every gizmo
+bool intersect(gizmo_context::gizmo_context_impl & g, const ray & r, interact i, float & t, const float best_t)
+{
+    if (intersect_ray_mesh(r, g.mesh_components[i].mesh, &t) && t < best_t) return true;
+    return false;
+}
+
 ///////////////////////////////////
 // Private Gizmo Implementations //
 ///////////////////////////////////
@@ -480,25 +487,17 @@ void axis_translation_dragger(const uint32_t id, gizmo_context::gizmo_context_im
 //   Gizmo Implementations   //
 ///////////////////////////////
 
-bool intersect(gizmo_context::gizmo_context_impl & g, const ray & r, interact i, float & t, const float best_t)
-{
-    if (intersect_ray_mesh(r, g.mesh_components[i].mesh, &t) && t < best_t) return true;
-    return false;
-}
-
 void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float4 & orientation, float3 & position)
 {
-    auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), position);
-
-    const float scale = scale_screenspace(g, p.position, 80.f);
-
+    rigid_transform p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), position);
+    const float draw_scale = (g.active_state.screenspace_scale > 0.f) ? scale_screenspace(g, p.position, g.active_state.screenspace_scale) : 1.f;
     const uint32_t id = hash_fnv1a(name);
 
     if (g.has_clicked)
     {
         g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
-        detransform(scale, ray);
+        detransform(draw_scale, ray);
 
         float best_t = std::numeric_limits<float>::infinity(), t;
         if (intersect(g, ray, interact::translate_x, t, best_t))   { g.gizmos[id].interaction_mode = interact::translate_x;   best_t = t; }
@@ -511,8 +510,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
 
         if (g.gizmos[id].interaction_mode != interact::none)
         {
-
-            transform(scale, ray);
+            transform(draw_scale, ray);
             g.gizmos[id].click_offset = g.local_toggle ? p.transform_vector(ray.origin + ray.direction*t) : ray.origin + ray.direction*t;
             g.gizmos[id].active = true;
         }
@@ -548,10 +546,9 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
         interact::translate_xyz
     };
 
-    float4x4 model = p.matrix();
-
-    auto scaleMat = scaling_matrix(float3(scale));
-    model = mul(model, scaleMat);
+    float4x4 modelMatrix = p.matrix();
+    float4x4 scaleMatrix = scaling_matrix(float3(draw_scale));
+    modelMatrix = mul(modelMatrix, scaleMatrix);
 
     for (auto c : draw_interactions)
     {
@@ -560,8 +557,8 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
         r.color = (c == g.gizmos[id].interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
-            v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
-            v.normal = transform_vector(model, v.normal);
+            v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
+            v.normal = transform_vector(modelMatrix, v.normal);
         }
         g.drawlist.push_back(r);
     }
@@ -571,14 +568,15 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 {
     assert(length2(orientation) > float(1e-6));
 
+    rigid_transform p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center); // Orientation is local by default
+    const float draw_scale = (g.active_state.screenspace_scale > 0.f) ? scale_screenspace(g, p.position, g.active_state.screenspace_scale) : 1.f;
     const uint32_t id = hash_fnv1a(name);
-
-    auto p = rigid_transform(g.local_toggle ? orientation : float4(0, 0, 0, 1), center); // Orientation is local by default
 
     if (g.has_clicked)
     {
         g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        detransform(draw_scale, ray);
         float best_t = std::numeric_limits<float>::infinity(), t;
 
         if (intersect(g, ray, interact::rotate_x, t, best_t)) { g.gizmos[id].interaction_mode = interact::rotate_x; best_t = t; }
@@ -587,6 +585,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
         if (g.gizmos[id].interaction_mode != interact::none)
         {
+            transform(draw_scale, ray);
             g.gizmos[id].original_position = center;
             g.gizmos[id].original_orientation = orientation;
             g.gizmos[id].click_offset = p.transform_point(ray.origin + ray.direction * t);
@@ -609,7 +608,9 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
     if (g.has_released) g.gizmos[id].interaction_mode = interact::none;
 
-    const auto model = p.matrix();
+    float4x4 modelMatrix = p.matrix();
+    float4x4 scaleMatrix = scaling_matrix(float3(draw_scale));
+    modelMatrix = mul(modelMatrix, scaleMatrix);
 
     std::vector<interact> draw_interactions;
     if (!g.local_toggle && g.gizmos[id].interaction_mode != interact::none) draw_interactions = { g.gizmos[id].interaction_mode };
@@ -622,8 +623,8 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         r.color = (c == g.gizmos[id].interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
-            v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
-            v.normal = transform_vector(model, v.normal);
+            v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
+            v.normal = transform_vector(modelMatrix, v.normal);
         }
         g.drawlist.push_back(r);
     }
@@ -647,8 +648,8 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         r.color = float4(1);
         for (auto & v : r.mesh.vertices)
         {
-            v.position = transform_coord(model, v.position);
-            v.normal = transform_vector(model, v.normal);
+            v.position = transform_coord(modelMatrix, v.position);
+            v.normal = transform_vector(modelMatrix, v.normal);
         }
         g.drawlist.push_back(r);
 
@@ -697,22 +698,23 @@ void axis_scale_dragger(const uint32_t & id, gizmo_context::gizmo_context_impl &
 
 void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g, const float4 & orientation, const float3 & center, float3 & scale)
 {
+    rigid_transform p = rigid_transform(orientation, center);
+    const float draw_scale = (g.active_state.screenspace_scale > 0.f) ? scale_screenspace(g, p.position, g.active_state.screenspace_scale) : 1.f;
     const uint32_t id = hash_fnv1a(name);
-
-    auto p = rigid_transform(orientation, center);
 
     if (g.has_clicked)
     {
         g.gizmos[id].interaction_mode = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        detransform(draw_scale, ray);
         float best_t = std::numeric_limits<float>::infinity(), t;
-
         if (intersect(g, ray, interact::scale_x, t, best_t)) { g.gizmos[id].interaction_mode = interact::scale_x; best_t = t; }
         if (intersect(g, ray, interact::scale_y, t, best_t)) { g.gizmos[id].interaction_mode = interact::scale_y; best_t = t; }
         if (intersect(g, ray, interact::scale_z, t, best_t)) { g.gizmos[id].interaction_mode = interact::scale_z; best_t = t; }
 
         if (g.gizmos[id].interaction_mode != interact::none)
         {
+            transform(draw_scale, ray);
             g.gizmos[id].original_scale = scale;
             g.gizmos[id].click_offset = p.transform_point(ray.origin + ray.direction*t);
             g.gizmos[id].active = true;
@@ -732,7 +734,9 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
         }
     }
 
-    auto model = p.matrix();
+    float4x4 modelMatrix = p.matrix();
+    float4x4 scaleMatrix = scaling_matrix(float3(draw_scale));
+    modelMatrix = mul(modelMatrix, scaleMatrix);
 
     std::vector<interact> draw_components { interact::scale_x, interact::scale_y, interact::scale_z };
 
@@ -743,8 +747,8 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
         r.color = (c == g.gizmos[id].interaction_mode) ? g.mesh_components[c].base_color : g.mesh_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
-            v.position = transform_coord(model, v.position); // transform local coordinates into worldspace
-            v.normal = transform_vector(model, v.normal);
+            v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
+            v.normal = transform_vector(modelMatrix, v.normal);
         }
         g.drawlist.push_back(r);
     }
