@@ -11,6 +11,11 @@
 using namespace tinygizmo;
 using namespace minalg;
 
+static inline uint64_t get_local_time_ns()
+{
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+}
+
 const linalg::aliases::float4x4 identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0 },{ 0, 0, 0, 1 } };
 
 constexpr const char gizmo_vert[] = R"(#version 330
@@ -195,7 +200,7 @@ int main(int argc, char * argv[])
 
     win->on_mouse_button = [&](int button, int action, int mods)
     {
-        gizmo_state.mouse_left = (action != GLFW_RELEASE);
+        if (button == GLFW_MOUSE_BUTTON_LEFT) gizmo_state.mouse_left = (action != GLFW_RELEASE);
         if (button == GLFW_MOUSE_BUTTON_LEFT) ml = (action != GLFW_RELEASE);
         if (button == GLFW_MOUSE_BUTTON_RIGHT) mr = (action != GLFW_RELEASE);
     };
@@ -215,6 +220,8 @@ int main(int argc, char * argv[])
 
     rigid_transform xform_a;
     xform_a.position = { -2, 0, 0 };
+
+    rigid_transform xform_a_last;
    
     rigid_transform xform_b;
     xform_b.position = { +2, 0, 0 };
@@ -256,7 +263,7 @@ int main(int argc, char * argv[])
         gizmo_state.cam.yfov = cam.yfov;
         gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
-        // gizmo_state.screenspace_scale = 80.f; // optional flag to draw the gizmos at a constant screen-space scale
+        //gizmo_state.screenspace_scale = 80.f; // optional flag to draw the gizmos at a constant screen-space scale
   
         glDisable(GL_CULL_FACE);
         auto teapotModelMatrix_a = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_a.matrix());
@@ -268,7 +275,14 @@ int main(int argc, char * argv[])
         glClear(GL_DEPTH_BUFFER_BIT);
 
         gizmo_ctx.update(gizmo_state);
-        transform_gizmo("first-example-gizmo", gizmo_ctx, xform_a);
+
+        if (transform_gizmo("first-example-gizmo", gizmo_ctx, xform_a))
+        {
+            std::cout << get_local_time_ns() << " - " << "First Gizmo Hovered..." << std::endl;
+            if (xform_a != xform_a_last) std::cout << get_local_time_ns() << " - " << "First Gizmo Changed..." << std::endl;
+            xform_a_last = xform_a;
+        }
+
         transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
         gizmo_ctx.draw();
 
