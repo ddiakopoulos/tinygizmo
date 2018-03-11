@@ -266,10 +266,12 @@ int main(int argc, char * argv[])
         //gizmo_state.screenspace_scale = 80.f; // optional flag to draw the gizmos at a constant screen-space scale
   
         glDisable(GL_CULL_FACE);
-        auto teapotModelMatrix_a = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_a.matrix());
+        auto teapotModelMatrix_a_tmp = xform_a.matrix();
+        auto teapotModelMatrix_a = reinterpret_cast<const linalg::aliases::float4x4 &>(teapotModelMatrix_a_tmp);
         draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_a);
 
-        auto teapotModelMatrix_b = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_b.matrix());
+        auto teapotModelMatrix_b_tmp = xform_b.matrix();
+        auto teapotModelMatrix_b = reinterpret_cast<const linalg::aliases::float4x4 &>(teapotModelMatrix_b_tmp);
         draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_b);
 
         glClear(GL_DEPTH_BUFFER_BIT);
