@@ -497,6 +497,8 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
     // interaction_mode will only change on clicked
     if (g.has_clicked) g.gizmos[id].interaction_mode = interact::none;
 
+    interact transient_hover_mode = interact::none;
+
     {
         interact updated_state = interact::none;
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
@@ -524,6 +526,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
             else g.gizmos[id].active = false;
         }
 
+        transient_hover_mode = updated_state;
         g.gizmos[id].hover = (best_t == std::numeric_limits<float>::infinity()) ? false : true;
     }
  
@@ -568,7 +571,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
     {
         gizmo_renderable r;
         r.mesh = g.raycast_components[c].mesh;
-        r.color = (c == g.gizmos[id].interaction_mode) ? g.raycast_components[c].base_color : g.raycast_components[c].highlight_color;
+        r.color = (c == g.gizmos[id].interaction_mode || c == transient_hover_mode) ? g.raycast_components[c].base_color : g.raycast_components[c].highlight_color;
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
