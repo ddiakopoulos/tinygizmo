@@ -23,11 +23,11 @@ static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0
 static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
 static const float tau = 6.28318530718f;
 
-void flush_to_zero(float3 & f)
+void flush_to_zero(float3 & f, const float epsilon = 0.075f)
 {
-    if (std::abs(f.x) < 0.02f) f.x = 0.f;
-    if (std::abs(f.y) < 0.02f) f.y = 0.f;
-    if (std::abs(f.z) < 0.02f) f.z = 0.f;
+    if (std::abs(f.x) < epsilon) f.x = 0.f;
+    if (std::abs(f.y) < epsilon) f.y = 0.f;
+    if (std::abs(f.z) < epsilon) f.z = 0.f;
 }
 
 // 32 bit Fowler–Noll–Vo Hash
@@ -745,7 +745,7 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
             {
                 transform(draw_scale, ray);
                 g.gizmos[id].original_scale = scale;
-                g.gizmos[id].click_offset = p.transform_point(ray.origin + ray.direction*t);
+                g.gizmos[id].click_offset = p.transform_point(ray.origin + ray.direction * t);
                 g.gizmos[id].active = true;
             }
             else g.gizmos[id].active = false;
@@ -769,10 +769,10 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
     }
 
     float4x4 modelMatrix = p.matrix();
-    float4x4 scaleMatrix = scaling_matrix(float3(draw_scale));
+    const float4x4 scaleMatrix = scaling_matrix(float3(draw_scale));
     modelMatrix = mul(modelMatrix, scaleMatrix);
 
-    std::vector<interact> draw_components { interact::scale_x, interact::scale_y, interact::scale_z };
+    const std::vector<interact> draw_components { interact::scale_x, interact::scale_y, interact::scale_z };
 
     for (auto c : draw_components)
     {

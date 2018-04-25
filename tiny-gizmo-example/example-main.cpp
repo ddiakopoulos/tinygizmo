@@ -41,7 +41,7 @@ constexpr const char gizmo_frag[] = R"(#version 330
     uniform vec3 u_eye;
     void main()
     {
-        vec3 light = vec3(1) * max(dot(v_normal, normalize(u_eye - v_world)), 0.50) + 0.25;
+        vec3 light = vec3(1) * max(dot(v_normal, normalize(u_eye - v_world)), 0.5) + 0.25;
         f_color = v_color * vec4(light, 1);
     }
 )";
@@ -251,7 +251,7 @@ int main(int argc, char * argv[])
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glClearColor(0.725f, 0.725f, 0.725f, 1.0f);
+        glClearColor(0.425f, 0.425f, 0.425f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         auto cameraOrientation = cam.get_orientation();
@@ -278,8 +278,8 @@ int main(int argc, char * argv[])
 
         if (transform_gizmo("first-example-gizmo", gizmo_ctx, xform_a))
         {
-            std::cout << get_local_time_ns() << " - " << "First Gizmo Hovered..." << std::endl;
-            if (xform_a != xform_a_last) std::cout << get_local_time_ns() << " - " << "First Gizmo Changed..." << std::endl;
+            //std::cout << get_local_time_ns() << " - " << "First Gizmo Hovered..." << std::endl;
+            //if (xform_a != xform_a_last) std::cout << get_local_time_ns() << " - " << "First Gizmo Changed..." << std::endl;
             xform_a_last = xform_a;
         }
 

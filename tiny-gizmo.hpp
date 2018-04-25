@@ -12,7 +12,7 @@
 #include <limits>       // For std::numeric_limits/epsilon
 #include <functional>   // For std::function callbacks
 #include <memory>       // For std::unique_ptr
-#include <vector>       // For ... 
+#include <vector>       // For std::vector 
 #include <ostream>      // For overloads of operator<< to std::ostream& in the operator<< overloads provided by this library
 
 // Visual Studio versions prior to 2015 lack constexpr support
@@ -21,8 +21,8 @@
 #endif
 
 // This library includes an inline version of linalg.h (https://github.com/sgorsten/linalg) in a separate minalg
-// namespace. This is to reduce the number of files in this library to 2, without a separate header specifically
-// for 3d math. 
+// namespace. This is to reduce the number of files in this library to 2 (no need for a separate header specifically
+// for 3d math). The tinygizmo API begins on line ~420.
 namespace minalg
 {
     // Small, fixed-length vector type, consisting of exactly M elements of type T, and presumed to be a column-vector unless otherwise noted
@@ -419,7 +419,6 @@ template<class T, int N> std::ostream & operator << (std::ostream & a, const min
 
 namespace tinygizmo
 {
-
     ///////////////////////
     //   Utility Math    //
     ///////////////////////
