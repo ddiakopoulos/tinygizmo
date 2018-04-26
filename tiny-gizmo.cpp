@@ -23,7 +23,7 @@ static const float4x4 Identity4x4 = { { 1, 0, 0, 0 },{ 0, 1, 0, 0 },{ 0, 0, 1, 0
 static const float3x3 Identity3x3 = { { 1, 0, 0 },{ 0, 1, 0 },{ 0, 0, 1 } };
 static const float tau = 6.28318530718f;
 
-void flush_to_zero(float3 & f, const float epsilon = 0.075f)
+void flush_to_zero(float3 & f, const float epsilon = 0.1f)
 {
     if (std::abs(f.x) < epsilon) f.x = 0.f;
     if (std::abs(f.y) < epsilon) f.y = 0.f;
@@ -67,7 +67,7 @@ float4 make_rotation_quat_between_vectors_snapped(const float3 & from, const flo
 
 template<typename T> T clamp(const T & val, const T & min, const T & max) { return std::min(std::max(val, min), max); }
 
-struct gizmo_mesh_component { geometry_mesh mesh; float4 base_color, highlight_color; };
+struct gizmo_mesh_component { geometry_mesh mesh; float4 highlight_color, static_color; };
 struct gizmo_renderable { geometry_mesh mesh; float4 color; };
 
 struct ray { float3 origin, direction; };
@@ -337,20 +337,20 @@ gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx
 {
     std::vector<float2> arrow_points            = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.10f },{ 1.2f, 0 } };
     std::vector<float2> mace_points             = { { 0.25f, 0 }, { 0.25f, 0.05f },{ 1, 0.05f },{ 1, 0.1f },{ 1.25f, 0.1f }, { 1.25f, 0 } };
-    std::vector<float2> ring_points             = { { +0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1 },{ -0.025f, 1.1f },{ -0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1.1f },{ +0.025f, 1 } };
-    raycast_components[interact::translate_x]      = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f, 1.f }, { 1,0,0, 1.f } };
-    raycast_components[interact::translate_y]      = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
-    raycast_components[interact::translate_z]      = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
-    raycast_components[interact::translate_yz]     = { make_box_geometry({ -0.01f,0.33f,0.33f },{ 0.01f,0.83f,0.83f }), { 0.5f,1,1, 0.5f }, { 0,1,1, 0.6f } };
-    raycast_components[interact::translate_zx]     = { make_box_geometry({ 0.33f,-0.01f,0.33f },{ 0.83f,0.01f,0.83f }), { 1,0.5f,1, 0.5f }, { 1,0,1, 0.6f } };
-    raycast_components[interact::translate_xy]     = { make_box_geometry({ 0.33f,0.33f,-0.01f },{ 0.83f,0.83f,0.01f }), { 1,1,0.5f, 0.5f }, { 1,1,0, 0.6f } };
-    raycast_components[interact::translate_xyz]    = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f, 0.25f },{ 1,1,1, 0.35f } };
-    raycast_components[interact::rotate_x]         = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 32, ring_points, 0.003f), { 1, 0.5f, 0.5f, 1.f }, { 1, 0, 0, 1.f } };
-    raycast_components[interact::rotate_y]         = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 32, ring_points, -0.003f), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
-    raycast_components[interact::rotate_z]         = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 32, ring_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
-    raycast_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
-    raycast_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
-    raycast_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
+    std::vector<float2> ring_points             = { { +0.01f, 1 },{ -0.01f, 1 },{ -0.01f, 1 },{ -0.01f, 1.05f },{ -0.01f, 1.05f },{ +0.01f, 1.05f },{ +0.01f, 1.05f },{ +0.01f, 1 } };
+    raycast_components[interact::translate_x]   = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, arrow_points), { 1,0.5f,0.5f, 1.f }, { 1,0,0, 1.f } };
+    raycast_components[interact::translate_y]   = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, arrow_points), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
+    raycast_components[interact::translate_z]   = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, arrow_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
+    raycast_components[interact::translate_yz]  = { make_box_geometry({ -0.01f,0.33f,0.33f },{ 0.01f,0.83f,0.83f }), { 0.5f,1,1, 0.5f }, { 0,1,1, 0.6f } };
+    raycast_components[interact::translate_zx]  = { make_box_geometry({ 0.33f,-0.01f,0.33f },{ 0.83f,0.01f,0.83f }), { 1,0.5f,1, 0.5f }, { 1,0,1, 0.6f } };
+    raycast_components[interact::translate_xy]  = { make_box_geometry({ 0.33f,0.33f,-0.01f },{ 0.83f,0.83f,0.01f }), { 1,1,0.5f, 0.5f }, { 1,1,0, 0.6f } };
+    raycast_components[interact::translate_xyz] = { make_box_geometry({ -0.05f,-0.05f,-0.05f },{ 0.05f,0.05f,0.05f }),{ 0.9f, 0.9f, 0.9f, 0.25f },{ 1,1,1, 0.35f } };
+    raycast_components[interact::rotate_x]      = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 64, ring_points, 0.003f), { 1, 0.5f, 0.5f, 1.f }, { 1, 0, 0, 1.f } };
+    raycast_components[interact::rotate_y]      = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 64, ring_points, -0.003f), { 0.5f,1,0.5f, 1.f }, { 0,1,0, 1.f } };
+    raycast_components[interact::rotate_z]      = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 64, ring_points), { 0.5f,0.5f,1, 1.f }, { 0,0,1, 1.f } };
+    raycast_components[interact::scale_x]       = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
+    raycast_components[interact::scale_y]       = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
+    raycast_components[interact::scale_z]       = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
 }
 
 ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
@@ -408,32 +408,32 @@ void axis_rotation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl 
 
     if (g.active_state.mouse_left)
     {
-        rigid_transform original_pose = { start_orientation, interaction.original_position };
-        float3 the_axis = original_pose.transform_vector(axis);
-        float4 the_plane = { the_axis, -dot(the_axis, interaction.click_offset) };
+        const rigid_transform original_pose = { start_orientation, interaction.original_position };
+        const float3 the_axis = original_pose.transform_vector(axis);
+        const float4 the_plane = { the_axis, -dot(the_axis, interaction.click_offset) };
         const ray r = g.get_ray_from_cursor(g.active_state.cam);
 
         float t;
         if (intersect_ray_plane(r, the_plane, &t))
         {
-            float3 center_of_rotation = interaction.original_position + the_axis * dot(the_axis, interaction.click_offset - interaction.original_position);
-            float3 arm1 = normalize(interaction.click_offset - center_of_rotation);
-            float3 arm2 = normalize(r.origin + r.direction * t - center_of_rotation);
+            const float3 center_of_rotation = interaction.original_position + the_axis * dot(the_axis, interaction.click_offset - interaction.original_position);
+            const float3 arm1 = normalize(interaction.click_offset - center_of_rotation);
+            const float3 arm2 = normalize(r.origin + r.direction * t - center_of_rotation);
 
-            float d = dot(arm1, arm2);
+            const float d = dot(arm1, arm2);
             if (d > 0.999f) { orientation = start_orientation; return; }
 
-            float angle = std::acos(d);
+            const float angle = std::acos(d);
             if (angle < 0.001f) { orientation = start_orientation; return; }
 
             if (g.active_state.snap_rotation)
             {
-                auto snapped = make_rotation_quat_between_vectors_snapped(arm1, arm2, g.active_state.snap_rotation);
+                const float4 snapped = make_rotation_quat_between_vectors_snapped(arm1, arm2, g.active_state.snap_rotation);
                 orientation = qmul(snapped, start_orientation);
             }
             else
             {
-                auto a = normalize(cross(arm1, arm2));
+                const float3 a = normalize(cross(arm1, arm2));
                 orientation = qmul(rotation_quat(a, angle), start_orientation);
             }
         }
@@ -571,7 +571,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
     {
         gizmo_renderable r;
         r.mesh = g.raycast_components[c].mesh;
-        r.color = (c == g.gizmos[id].interaction_mode || c == transient_hover_mode) ? g.raycast_components[c].base_color : g.raycast_components[c].highlight_color;
+        r.color = (c == g.gizmos[id].interaction_mode || c == transient_hover_mode) ? g.raycast_components[c].highlight_color : g.raycast_components[c].static_color;
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
@@ -589,13 +589,17 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     const float draw_scale = (g.active_state.screenspace_scale > 0.f) ? scale_screenspace(g, p.position, g.active_state.screenspace_scale) : 1.f;
     const uint32_t id = hash_fnv1a(name);
 
+    interact transient_hover_mode = interact::none;
+
+    auto look = normalize(g.active_state.cam.position - center);
+
     // interaction_mode will only change on clicked
     if (g.has_clicked) g.gizmos[id].interaction_mode = interact::none;
 
     {
         interact updated_state = interact::none;
-
         auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+
         detransform(draw_scale, ray);
         float best_t = std::numeric_limits<float>::infinity(), t;
 
@@ -616,6 +620,8 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
             }
             else g.gizmos[id].active = false;
         }
+
+        transient_hover_mode = updated_state;
     }
 
     float3 activeAxis;
@@ -642,13 +648,31 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
 
     std::vector<interact> draw_interactions;
     if (!g.local_toggle && g.gizmos[id].interaction_mode != interact::none) draw_interactions = { g.gizmos[id].interaction_mode };
-    else draw_interactions = { interact::rotate_x, interact::rotate_y, interact::rotate_z };
+    else
+    {
+        if ((1.0f - std::abs(dot(look, p.transform_vector({ 1, 0, 0 })))) < 0.75f) draw_interactions.push_back(interact::rotate_x);
+        if ((1.0f - std::abs(dot(look, p.transform_vector({ 0, 1, 0 })))) < 0.75f) draw_interactions.push_back(interact::rotate_y);
+        if ((1.0f - std::abs(dot(look, p.transform_vector({ 0, 0, 1 })))) < 0.75f) draw_interactions.push_back(interact::rotate_z);
+    }
 
     for (auto c : draw_interactions)
     {
         gizmo_renderable r;
         r.mesh = g.raycast_components[c].mesh;
-        r.color = (c == g.gizmos[id].interaction_mode) ? g.raycast_components[c].base_color : g.raycast_components[c].highlight_color;
+
+        if (c == g.gizmos[id].interaction_mode)
+        {
+            r.color = g.raycast_components[c].highlight_color; // color the active
+        }
+        else if (c == transient_hover_mode && !g.gizmos[id].active)
+        {
+            r.color = g.raycast_components[c].highlight_color; // color hovered if not active
+        }
+        else
+        {
+            r.color = g.raycast_components[c].static_color;
+        }
+
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
@@ -730,6 +754,8 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
     const float draw_scale = (g.active_state.screenspace_scale > 0.f) ? scale_screenspace(g, p.position, g.active_state.screenspace_scale) : 1.f;
     const uint32_t id = hash_fnv1a(name);
 
+    interact transient_hover_mode = interact::none;
+
     if (g.has_clicked) g.gizmos[id].interaction_mode = interact::none;
 
     {
@@ -753,6 +779,8 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
             }
             else g.gizmos[id].active = false;
         }
+
+        transient_hover_mode = updated_state;
     }
 
     if (g.has_released)
@@ -781,7 +809,8 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
     {
         gizmo_renderable r;
         r.mesh = g.raycast_components[c].mesh;
-        r.color = (c == g.gizmos[id].interaction_mode) ? g.raycast_components[c].base_color : g.raycast_components[c].highlight_color;
+        r.color = (c == g.gizmos[id].interaction_mode) ? g.raycast_components[c].highlight_color : g.raycast_components[c].static_color;
+
         for (auto & v : r.mesh.vertices)
         {
             v.position = transform_coord(modelMatrix, v.position); // transform local coordinates into worldspace
