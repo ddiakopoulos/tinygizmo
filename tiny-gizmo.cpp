@@ -260,11 +260,11 @@ geometry_mesh make_lathed_geometry(const float3 & axis, const float3 & arm1, con
     geometry_mesh mesh;
     for (int i = 0; i <= slices; ++i)
     {
-        const float angle = (static_cast<float>(i % slices) * tau / slices) + (tau/8.f), c = std::cos(angle), s = std::sin(angle);
+        const float angle = (static_cast<float>(i % slices) * tau / slices) + (tau / 12.f), c = std::cos(angle), s = std::sin(angle);
         const float3x2 mat = { axis, arm1 * c + arm2 * s };
         for (auto & p : points) mesh.vertices.push_back({ mul(mat, p) + eps, float3(0.f) });
 
-        if (i > 0)
+        if (i > 32)
         {
             for (uint32_t j = 1; j < (uint32_t) points.size(); ++j)
             {
@@ -650,10 +650,14 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     if (!g.local_toggle && g.gizmos[id].interaction_mode != interact::none) draw_interactions = { g.gizmos[id].interaction_mode };
     else
     {
-        if ((1.0f - std::abs(dot(look, p.transform_vector({ 1, 0, 0 })))) < 0.75f) draw_interactions.push_back(interact::rotate_x);
-        if ((1.0f - std::abs(dot(look, p.transform_vector({ 0, 1, 0 })))) < 0.75f) draw_interactions.push_back(interact::rotate_y);
-        if ((1.0f - std::abs(dot(look, p.transform_vector({ 0, 0, 1 })))) < 0.75f) draw_interactions.push_back(interact::rotate_z);
+        if ((1.0f - std::abs(dot(look, p.transform_vector({ 1, 0, 0 })))) < 0.90f) draw_interactions.push_back(interact::rotate_x);
+        if ((1.0f - std::abs(dot(look, p.transform_vector({ 0, 1, 0 })))) < 0.90f) draw_interactions.push_back(interact::rotate_y);
+        if ((1.0f - std::abs(dot(look, p.transform_vector({ 0, 0, 1 })))) < 0.90f) draw_interactions.push_back(interact::rotate_z);
     }
+
+    auto aX = std::abs(dot(look, p.transform_vector({ 1, 0, 0 })));
+    auto aY = std::abs(dot(look, p.transform_vector({ 0, 1, 0 })));
+    auto aZ = std::abs(dot(look, p.transform_vector({ 0, 0, 1 })));
 
     for (auto c : draw_interactions)
     {
@@ -672,6 +676,10 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
         {
             r.color = g.raycast_components[c].static_color;
         }
+
+        if (c == interact::rotate_x) r.color.w = aX;
+        else if (c == interact::rotate_y) r.color.w = aY;
+        else if (c == interact::rotate_z) r.color.w = aZ;
 
         for (auto & v : r.mesh.vertices)
         {

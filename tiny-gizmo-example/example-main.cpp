@@ -248,6 +248,9 @@ int main(int argc, char * argv[])
 
         glViewport(0, 0, windowSize.x, windowSize.y);
 
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_BACK);
+
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -265,12 +268,12 @@ int main(int argc, char * argv[])
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
         //gizmo_state.screenspace_scale = 80.f; // optional flag to draw the gizmos at a constant screen-space scale
   
-        glDisable(GL_CULL_FACE);
+        //glDisable(GL_CULL_FACE);
         auto teapotModelMatrix_a = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_a.matrix());
         draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_a);
 
-        auto teapotModelMatrix_b = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_b.matrix());
-        draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_b);
+        //auto teapotModelMatrix_b = reinterpret_cast<const linalg::aliases::float4x4 &>(xform_b.matrix());
+        //draw_lit_mesh(litShader, teapotMesh, cam.position, cam.get_viewproj_matrix((float)windowSize.x / (float)windowSize.y), teapotModelMatrix_b);
 
         glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -283,7 +286,7 @@ int main(int argc, char * argv[])
             xform_a_last = xform_a;
         }
 
-        transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
+        //transform_gizmo("second-example-gizmo", gizmo_ctx, xform_b);
         gizmo_ctx.draw();
 
         gl_check_error(__FILE__, __LINE__);
