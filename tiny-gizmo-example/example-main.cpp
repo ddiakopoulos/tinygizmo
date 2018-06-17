@@ -208,14 +208,13 @@ int main(int argc, char * argv[])
     minalg::float2 lastCursor;
     win->on_cursor_pos = [&](linalg::aliases::float2 position)
     {
-        gizmo_state.cursor = minalg::float2(position.x, position.y);
-        auto deltaCursorMotion = gizmo_state.cursor - lastCursor;
+        auto deltaCursorMotion = minalg::float2(position.x, position.y) - lastCursor;
         if (mr)
         {
             cam.yaw -= deltaCursorMotion.x * 0.01f;
             cam.pitch -= deltaCursorMotion.y * 0.01f;
         }
-        lastCursor = gizmo_state.cursor;
+        lastCursor = minalg::float2(position.x, position.y);
     };
 
     rigid_transform xform_a;
@@ -256,6 +255,8 @@ int main(int argc, char * argv[])
 
         auto cameraOrientation = cam.get_orientation();
 
+        const auto rayDir = get_ray_from_pixel({ lastCursor.x, lastCursor.y }, { 0, 0, windowSize.x, windowSize.y }, cam).direction;
+
         // Gizmo input interaction state populated via win->on_input(...) callback above. Update app parameters: 
         gizmo_state.viewport_size = minalg::float2(windowSize.x, windowSize.y);
         gizmo_state.cam.near_clip = cam.near_clip;
@@ -263,6 +264,8 @@ int main(int argc, char * argv[])
         gizmo_state.cam.yfov = cam.yfov;
         gizmo_state.cam.position = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
         gizmo_state.cam.orientation = minalg::float4(cameraOrientation.x, cameraOrientation.y, cameraOrientation.z, cameraOrientation.w);
+        gizmo_state.ray_origin = minalg::float3(cam.position.x, cam.position.y, cam.position.z);
+        gizmo_state.ray_direction = minalg::float3(rayDir.x, rayDir.y, rayDir.z);
         //gizmo_state.screenspace_scale = 80.f; // optional flag to draw the gizmos at a constant screen-space scale
   
         glDisable(GL_CULL_FACE);

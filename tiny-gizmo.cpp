@@ -78,15 +78,6 @@ float3 transform_vector(const float4x4 & transform, const float3 & vector) { ret
 void transform(const float scale, ray & r) { r.origin *= scale; r.direction *= scale; }
 void detransform(const float scale, ray & r) { r.origin /= scale; r.direction /= scale; }
 
-struct rect
-{
-    int x0, y0, x1, y1;
-    int width() const { return x1 - x0; }
-    int height() const { return y1 - y0; }
-    int2 dims() const { return{ width(), height() }; }
-    float aspect_ratio() const { return (float)width() / height(); }
-};
-
 /////////////////////////////////////////
 // Ray-Geometry Intersection Functions //
 /////////////////////////////////////////
@@ -136,22 +127,6 @@ bool intersect_ray_mesh(const ray & ray, const geometry_mesh & mesh, float * hit
     if (best_tri == -1) return false;
     if (hit_t) *hit_t = best_t;
     return true;
-}
-
-/////////////////////////////
-// Camera Helper Functions //
-/////////////////////////////
-
-float4x4 get_view_matrix(const camera_parameters & cam) { return mul(rotation_matrix(qconj(cam.orientation)), translation_matrix(-cam.position)); }
-float4x4 get_projection_matrix(const rect & viewport, const camera_parameters & cam) { return perspective_matrix(cam.yfov, viewport.aspect_ratio(), cam.near_clip, cam.far_clip); }
-float4x4 get_viewproj_matrix(const rect & viewport, const camera_parameters & cam) { return mul(get_projection_matrix(viewport, cam), get_view_matrix(cam)); }
-
-ray get_ray_from_pixel(const float2 & pixel, const rect & viewport, const camera_parameters & cam)
-{
-    const float x = 2 * (pixel.x - viewport.x0) / viewport.width() - 1, y = 1 - 2 * (pixel.y - viewport.y0) / viewport.height();
-    const float4x4 inv_view_proj = inverse(get_viewproj_matrix(viewport, cam));
-    const float4 p0 = mul(inv_view_proj, float4(x, y, -1, 1)), p1 = mul(inv_view_proj, float4(x, y, +1, 1));
-    return{ cam.position, p1.xyz()*p0.w - p0.xyz()*p1.w };
 }
 
 ///////////////////////////////
@@ -326,8 +301,6 @@ struct gizmo_context::gizmo_context_impl
     bool has_clicked{ false };              // State to describe if the user has pressed the left mouse button during the last frame
     bool has_released{ false };             // State to describe if the user has released the left mouse button during the last frame
 
-    ray get_ray_from_cursor(const camera_parameters & cam) const;
-
     // Public methods
     void update(const gizmo_application_state & state);
     void draw();
@@ -351,11 +324,6 @@ gizmo_context::gizmo_context_impl::gizmo_context_impl(gizmo_context * ctx) : ctx
     mesh_components[interact::scale_x]          = { make_lathed_geometry({ 1,0,0 },{ 0,1,0 },{ 0,0,1 }, 16, mace_points),{ 1,0.5f,0.5f, 1.f },{ 1,0,0, 1.f } };
     mesh_components[interact::scale_y]          = { make_lathed_geometry({ 0,1,0 },{ 0,0,1 },{ 1,0,0 }, 16, mace_points),{ 0.5f,1,0.5f, 1.f },{ 0,1,0, 1.f } };
     mesh_components[interact::scale_z]          = { make_lathed_geometry({ 0,0,1 },{ 1,0,0 },{ 0,1,0 }, 16, mace_points),{ 0.5f,0.5f,1, 1.f },{ 0,0,1, 1.f } };
-}
-
-ray gizmo_context::gizmo_context_impl::get_ray_from_cursor(const camera_parameters & cam) const
-{
-    return get_ray_from_pixel(active_state.cursor, { 0, 0, (int) active_state.viewport_size.x, (int) active_state.viewport_size.y }, cam);
 }
 
 void gizmo_context::gizmo_context_impl::update(const gizmo_application_state & state)
@@ -411,7 +379,7 @@ void axis_rotation_dragger(const uint32_t id, gizmo_context::gizmo_context_impl 
         rigid_transform original_pose = { start_orientation, interaction.original_position };
         float3 the_axis = original_pose.transform_vector(axis);
         float4 the_plane = { the_axis, -dot(the_axis, interaction.click_offset) };
-        const ray r = g.get_ray_from_cursor(g.active_state.cam);
+        const ray r = { g.active_state.ray_origin, g.active_state.ray_direction };
 
         float t;
         if (intersect_ray_plane(r, the_plane, &t))
@@ -451,18 +419,16 @@ void plane_translation_dragger(const uint32_t id, gizmo_context::gizmo_context_i
     {
         // Define the plane to contain the original position of the object
         const float3 plane_point = interaction.original_position;
-
-        // Define a ray emitting from the camera underneath the cursor
-        const ray ray = g.get_ray_from_cursor(g.active_state.cam);
+        const ray r = { g.active_state.ray_origin, g.active_state.ray_direction };
 
         // If an intersection exists between the ray and the plane, place the object at that point
-        const float denom = dot(ray.direction, plane_normal);
+        const float denom = dot(r.direction, plane_normal);
         if (std::abs(denom) == 0) return;
 
-        const float t = dot(plane_point - ray.origin, plane_normal) / denom;
+        const float t = dot(plane_point - r.origin, plane_normal) / denom;
         if (t < 0) return;
 
-        point = ray.origin + ray.direction * t;
+        point = r.origin + r.direction * t;
 
         if (g.active_state.snap_translation) point = snap(point, g.active_state.snap_translation);
     }
@@ -499,7 +465,7 @@ void position_gizmo(const std::string & name, gizmo_context::gizmo_context_impl 
 
     {
         interact updated_state = interact::none;
-        auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        auto ray = detransform(p, { g.active_state.ray_origin, g.active_state.ray_direction });
         detransform(draw_scale, ray);
 
         float best_t = std::numeric_limits<float>::infinity(), t;
@@ -592,7 +558,7 @@ void orientation_gizmo(const std::string & name, gizmo_context::gizmo_context_im
     {
         interact updated_state = interact::none;
 
-        auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        auto ray = detransform(p, { g.active_state.ray_origin, g.active_state.ray_direction });
         detransform(draw_scale, ray);
         float best_t = std::numeric_limits<float>::infinity(), t;
 
@@ -697,9 +663,7 @@ void axis_scale_dragger(const uint32_t & id, gizmo_context::gizmo_context_impl &
         {
             // Define the plane to contain the original position of the object
             const float3 plane_point = center;
-
-            // Define a ray emitting from the camera underneath the cursor
-            const ray ray = g.get_ray_from_cursor(g.active_state.cam);
+            const ray ray = { g.active_state.ray_origin, g.active_state.ray_direction };
 
             // If an intersection exists between the ray and the plane, place the object at that point
             const float denom = dot(ray.direction, plane_normal);
@@ -731,7 +695,7 @@ void scale_gizmo(const std::string & name, gizmo_context::gizmo_context_impl & g
 
     {
         interact updated_state = interact::none;
-        auto ray = detransform(p, g.get_ray_from_cursor(g.active_state.cam));
+        auto ray = detransform(p, { g.active_state.ray_origin, g.active_state.ray_direction });
         detransform(draw_scale, ray);
         float best_t = std::numeric_limits<float>::infinity(), t;
         if (intersect(g, ray, interact::scale_x, t, best_t)) { updated_state = interact::scale_x; best_t = t; }

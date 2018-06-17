@@ -486,7 +486,8 @@ namespace tinygizmo
         float snap_scale{ 0.f };            // World-scale units used for snapping scale
         float snap_rotation{ 0.f };         // Radians used for snapping rotation quaternions (i.e. PI/8 or PI/16)
         minalg::float2 viewport_size;       // 3d viewport used to render the view
-        minalg::float2 cursor;              // Current cursor location in window coordinates
+        minalg::float3 ray_origin;          // world-space ray origin (i.e. the camera position)
+        minalg::float3 ray_direction;       // world-space ray direction
         camera_parameters cam;              // Used for constructing inverse view projection for raycasting onto gizmo geometry
     };
 
