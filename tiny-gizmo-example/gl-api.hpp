@@ -7,6 +7,7 @@
 #define gl_api_hpp
 
 #include <map>
+#include <cstring>
 #include <string>
 #include <vector>
 #include "linalg.h"
